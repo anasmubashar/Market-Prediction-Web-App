@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  //   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isScheduling, setIsScheduling] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);

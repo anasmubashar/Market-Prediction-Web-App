@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Mail, TrendingUp, Users, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
