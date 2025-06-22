@@ -5,13 +5,7 @@ import React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, MessageCircle } from "lucide-react";
 import {
   Dialog,
@@ -43,12 +37,7 @@ export default function SignupPage() {
         {/* Main Signup Card */}
         <Card className="shadow-lg">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-gray-900">
-              Join the Market
-            </CardTitle>
-            <CardDescription className="text-base">
-              Enter your email to start participating in prediction markets
-            </CardDescription>
+            <CardTitle className="text-2xl text-gray-900">TUSQ</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,7 +69,7 @@ export default function SignupPage() {
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    Confirmation email with 1000 starting points
+                    You receive 1000 points to start
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
@@ -105,7 +94,7 @@ export default function SignupPage() {
                   </div>
                 ) : (
                   <>
-                    <Mail className="w-4 h-4 mr-2" />
+                    <img src="/crypto.png" className="w-5 h-5 mr-1" />
                     Join Prediction Market
                   </>
                 )}

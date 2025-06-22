@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ChartTooltip } from "@/components/ui/chart";
 import {
   Users,
   Download,
@@ -49,7 +50,33 @@ import {
   Send,
   Database,
   Activity,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+type SortField =
+  | "name"
+  | "points"
+  | "accuracy"
+  | "predictions"
+  | "joinDate"
+  | "lastActive";
+type SortDirection = "asc" | "desc";
+type TransactionSortField =
+  | "userName"
+  | "action"
+  | "market"
+  | "points"
+  | "timestamp";
 
 export default function AdminDashboard() {
   //   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -58,6 +85,14 @@ export default function AdminDashboard() {
   const [usersPerPage] = useState(10);
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionsPerPage] = useState(10);
+  const [userSortField, setUserSortField] = useState<SortField>("name");
+  const [userSortDirection, setUserSortDirection] =
+    useState<SortDirection>("asc");
+  const [transactionSortField, setTransactionSortField] =
+    useState<TransactionSortField>("timestamp");
+  const [transactionSortDirection, setTransactionSortDirection] =
+    useState<SortDirection>("desc");
+  const [selectedMarketId, setSelectedMarketId] = useState<string>("1");
 
   // Mock data
   const users = [
@@ -183,15 +218,40 @@ export default function AdminDashboard() {
     },
   ];
 
+  // Sort users
+  const sortedUsers = [...users].sort((a, b) => {
+    let aValue: any = a[userSortField];
+    let bValue: any = b[userSortField];
+
+    if (userSortField === "joinDate" || userSortField === "lastActive") {
+      aValue = new Date(aValue);
+      bValue = new Date(bValue);
+    }
+
+    if (aValue < bValue) return userSortDirection === "asc" ? -1 : 1;
+    if (aValue > bValue) return userSortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
   // Pagination calculations
-  const totalUsers = users.length;
+  const totalUsers = sortedUsers.length;
   const totalPages = Math.ceil(totalUsers / usersPerPage);
   const startIndex = (currentPage - 1) * usersPerPage;
   const endIndex = startIndex + usersPerPage;
-  const currentUsers = users.slice(startIndex, endIndex);
+  const currentUsers = sortedUsers.slice(startIndex, endIndex);
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const handleUserSort = (field: SortField) => {
+    if (userSortField === field) {
+      setUserSortDirection(userSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setUserSortField(field);
+      setUserSortDirection("asc");
+    }
+    setCurrentPage(1); // Reset to first page when sorting
   };
 
   const transactions = [
@@ -332,20 +392,47 @@ export default function AdminDashboard() {
     },
   ];
 
+  // Sort transactions
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    let aValue: any = a[transactionSortField];
+    let bValue: any = b[transactionSortField];
+
+    if (transactionSortField === "timestamp") {
+      aValue = new Date(aValue);
+      bValue = new Date(bValue);
+    }
+
+    if (aValue < bValue) return transactionSortDirection === "asc" ? -1 : 1;
+    if (aValue > bValue) return transactionSortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
   // Transaction pagination calculations
-  const totalTransactions = transactions.length;
+  const totalTransactions = sortedTransactions.length;
   const totalTransactionPages = Math.ceil(
     totalTransactions / transactionsPerPage
   );
   const transactionStartIndex = (transactionPage - 1) * transactionsPerPage;
   const transactionEndIndex = transactionStartIndex + transactionsPerPage;
-  const currentTransactions = transactions.slice(
+  const currentTransactions = sortedTransactions.slice(
     transactionStartIndex,
     transactionEndIndex
   );
 
   const goToTransactionPage = (page: number) => {
     setTransactionPage(Math.max(1, Math.min(page, totalTransactionPages)));
+  };
+
+  const handleTransactionSort = (field: TransactionSortField) => {
+    if (transactionSortField === field) {
+      setTransactionSortDirection(
+        transactionSortDirection === "asc" ? "desc" : "asc"
+      );
+    } else {
+      setTransactionSortField(field);
+      setTransactionSortDirection("asc");
+    }
+    setTransactionPage(1); // Reset to first page when sorting
   };
 
   const activeMarkets = [
@@ -357,6 +444,15 @@ export default function AdminDashboard() {
       participants: 45,
       deadline: "2024-06-30",
       status: "active",
+      probabilityHistory: [
+        { date: "2024-01-15", probability: 45 },
+        { date: "2024-01-16", probability: 48 },
+        { date: "2024-01-17", probability: 52 },
+        { date: "2024-01-18", probability: 58 },
+        { date: "2024-01-19", probability: 62 },
+        { date: "2024-01-20", probability: 65 },
+        { date: "2024-01-21", probability: 67 },
+      ],
     },
     {
       id: "2",
@@ -366,6 +462,15 @@ export default function AdminDashboard() {
       participants: 38,
       deadline: "2024-05-15",
       status: "active",
+      probabilityHistory: [
+        { date: "2024-01-15", probability: 35 },
+        { date: "2024-01-16", probability: 38 },
+        { date: "2024-01-17", probability: 41 },
+        { date: "2024-01-18", probability: 39 },
+        { date: "2024-01-19", probability: 42 },
+        { date: "2024-01-20", probability: 44 },
+        { date: "2024-01-21", probability: 43 },
+      ],
     },
     {
       id: "3",
@@ -375,8 +480,36 @@ export default function AdminDashboard() {
       participants: 52,
       deadline: "2024-08-01",
       status: "active",
+      probabilityHistory: [
+        { date: "2024-01-15", probability: 75 },
+        { date: "2024-01-16", probability: 77 },
+        { date: "2024-01-17", probability: 79 },
+        { date: "2024-01-18", probability: 81 },
+        { date: "2024-01-19", probability: 83 },
+        { date: "2024-01-20", probability: 82 },
+        { date: "2024-01-21", probability: 82 },
+      ],
     },
   ];
+
+  const getSortIcon = (field: SortField) => {
+    if (userSortField !== field) return <ArrowUpDown className="w-4 h-4" />;
+    return userSortDirection === "asc" ? (
+      <ArrowUp className="w-4 h-4" />
+    ) : (
+      <ArrowDown className="w-4 h-4" />
+    );
+  };
+
+  const getTransactionSortIcon = (field: TransactionSortField) => {
+    if (transactionSortField !== field)
+      return <ArrowUpDown className="w-4 h-4" />;
+    return transactionSortDirection === "asc" ? (
+      <ArrowUp className="w-4 h-4" />
+    ) : (
+      <ArrowDown className="w-4 h-4" />
+    );
+  };
 
   const exportUserData = () => {
     const csvContent = [
@@ -450,7 +583,9 @@ export default function AdminDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">
               Admin Dashboard
             </h1>
-            <p className="text-gray-600">Prediction Market Management</p>
+            <p className="text-gray-600">
+              Prediction Market Research Management
+            </p>
           </div>
           <div className="flex items-center space-x-4">
             <Badge
@@ -530,177 +665,188 @@ export default function AdminDashboard() {
           </Dialog>
         </div>
 
-        {/* User Database */}
+        {/* 1. Market Management */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center">
-                  <Users className="w-5 h-5 mr-2" />
-                  User Database
+                  <Database className="w-5 h-5 mr-2" />
+                  Market Management
                 </CardTitle>
                 <CardDescription>
-                  Manage participant accounts and balances
+                  Manage active prediction markets
                 </CardDescription>
               </div>
-              <div className="flex space-x-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Bulk Actions
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Bulk User Actions</DialogTitle>
-                      <DialogDescription>
-                        Apply actions to multiple users
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Action Type</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="reset-points">
-                              Reset Points to 1000
-                            </SelectItem>
-                            <SelectItem value="add-points">
-                              Add Points
-                            </SelectItem>
-                            <SelectItem value="send-email">
-                              Send Custom Email
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="points-value">
-                          Points Value (if applicable)
-                        </Label>
-                        <Input
-                          id="points-value"
-                          type="number"
-                          placeholder="100"
-                        />
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline">Cancel</Button>
-                        <Button>Apply to Selected</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Label
+                    htmlFor="market-select"
+                    className="text-sm font-medium"
+                  >
+                    Select Market:
+                  </Label>
+                  <Select
+                    value={selectedMarketId}
+                    onValueChange={setSelectedMarketId}
+                  >
+                    <SelectTrigger className="w-[300px]">
+                      <SelectValue placeholder="Choose a market" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeMarkets.map((market) => (
+                        <SelectItem key={market.id} value={market.id}>
+                          {market.title.length > 50
+                            ? `${market.title.substring(0, 50)}...`
+                            : market.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <input type="checkbox" className="rounded" />
-                  </TableHead>
-                  <TableHead>Participant</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Accuracy</TableHead>
-                  <TableHead>Predictions</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <input type="checkbox" className="rounded" />
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-gray-600">
-                          {user.email}
+            {(() => {
+              const selectedMarket = activeMarkets.find(
+                (market) => market.id === selectedMarketId
+              );
+              if (!selectedMarket) return <div>Market not found</div>;
+
+              return (
+                <div className="border rounded-lg p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Market Info */}
+                    <div>
+                      <h3 className="font-semibold text-lg mb-4">
+                        {selectedMarket.title}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <Label className="text-sm text-gray-600">
+                            Current Probability
+                          </Label>
+                          <div className="text-2xl font-bold text-indigo-600">
+                            {selectedMarket.probability}%
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-600">
+                            Total Volume
+                          </Label>
+                          <div className="text-lg font-semibold">
+                            {selectedMarket.totalVolume}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-600">
+                            Participants
+                          </Label>
+                          <div className="text-lg font-semibold">
+                            {selectedMarket.participants}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-gray-600">
+                            Deadline
+                          </Label>
+                          <div className="text-lg font-semibold">
+                            {selectedMarket.deadline}
+                          </div>
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{user.points}</Badge>
-                    </TableCell>
-                    <TableCell>{user.accuracy}%</TableCell>
-                    <TableCell>{user.predictions}</TableCell>
-                    <TableCell>{user.lastActive}</TableCell>
-                    <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="w-4 h-4" />
+                        <Button variant="outline" size="sm">
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
                         </Button>
-                        <Button variant="ghost" size="sm">
-                          <Mail className="w-4 h-4" />
+                        <Button variant="outline" size="sm">
+                          <Settings className="w-4 h-4 mr-2" />
+                          Settings
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                Showing {startIndex + 1} to {Math.min(endIndex, totalUsers)} of{" "}
-                {totalUsers} participants
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
+                    </div>
 
-                {/* Page Numbers */}
-                <div className="flex space-x-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const pageNum =
-                      Math.max(1, Math.min(totalPages - 4, currentPage - 2)) +
-                      i;
-                    if (pageNum > totalPages) return null;
-
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={
-                          currentPage === pageNum ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => goToPage(pageNum)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
+                    {/* Probability History Graph */}
+                    <div className="min-w-0">
+                      <Label className="text-sm text-gray-600 mb-2 block">
+                        Probability History
+                      </Label>
+                      <div className="w-full h-[250px] border rounded-lg p-4 bg-white">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart
+                            data={selectedMarket.probabilityHistory}
+                            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#e0e0e0"
+                            />
+                            <XAxis
+                              dataKey="date"
+                              tickFormatter={(value) =>
+                                new Date(value).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              }
+                              fontSize={12}
+                              stroke="#666"
+                            />
+                            <YAxis
+                              domain={[0, 100]}
+                              fontSize={12}
+                              stroke="#666"
+                            />
+                            <ChartTooltip
+                              content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="bg-white p-2 border rounded shadow">
+                                      <p className="text-sm">{`Date: ${new Date(
+                                        label
+                                      ).toLocaleDateString()}`}</p>
+                                      <p className="text-sm font-semibold text-indigo-600">{`Probability: ${payload[0].value}%`}</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="probability"
+                              stroke="#4f46e5"
+                              strokeWidth={3}
+                              dot={{ fill: "#4f46e5", strokeWidth: 2, r: 4 }}
+                              activeDot={{
+                                r: 6,
+                                stroke: "#4f46e5",
+                                strokeWidth: 2,
+                                fill: "#fff",
+                              }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
-        {/* Transaction Monitoring */}
+        {/* 2. Transaction Monitoring */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -715,11 +861,51 @@ export default function AdminDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Participant</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Market</TableHead>
-                  <TableHead>Points</TableHead>
-                  <TableHead>Timestamp</TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleTransactionSort("userName")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Participant {getTransactionSortIcon("userName")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleTransactionSort("action")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Action {getTransactionSortIcon("action")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleTransactionSort("market")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Market {getTransactionSortIcon("market")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleTransactionSort("points")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Points {getTransactionSortIcon("points")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleTransactionSort("timestamp")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Timestamp {getTransactionSortIcon("timestamp")}
+                    </Button>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -815,64 +1001,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Market Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Database className="w-5 h-5 mr-2" />
-              Market Management
-            </CardTitle>
-            <CardDescription>Manage active prediction markets</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Market Question</TableHead>
-                  <TableHead>Probability</TableHead>
-                  <TableHead>Volume</TableHead>
-                  <TableHead>Participants</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeMarkets.map((market) => (
-                  <TableRow key={market.id}>
-                    <TableCell className="max-w-xs">
-                      <div className="font-medium">{market.title}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{market.probability}%</Badge>
-                    </TableCell>
-                    <TableCell>{market.totalVolume}</TableCell>
-                    <TableCell>{market.participants}</TableCell>
-                    <TableCell>{market.deadline}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Settings className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Email Scheduling */}
+        {/* 3. Email Scheduling */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -920,6 +1049,216 @@ export default function AdminDashboard() {
                   <Label>Response Rate</Label>
                   <p className="text-sm text-gray-600">89% (139 responses)</p>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 4. User Database */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  User Database
+                </CardTitle>
+                <CardDescription>
+                  Manage participant accounts and balances
+                </CardDescription>
+              </div>
+              <div className="flex space-x-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Bulk Actions
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Bulk User Actions</DialogTitle>
+                      <DialogDescription>
+                        Apply actions to multiple users
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Action Type</Label>
+                        <Select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select action" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="reset-points">
+                              Reset Points to 1000
+                            </SelectItem>
+                            <SelectItem value="add-points">
+                              Add Points
+                            </SelectItem>
+                            <SelectItem value="send-email">
+                              Send Custom Email
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="points-value">
+                          Points Value (if applicable)
+                        </Label>
+                        <Input
+                          id="points-value"
+                          type="number"
+                          placeholder="100"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline">Cancel</Button>
+                        <Button>Apply to Selected</Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <input type="checkbox" className="rounded" />
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleUserSort("name")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Participant {getSortIcon("name")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleUserSort("points")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Points {getSortIcon("points")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleUserSort("accuracy")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Accuracy {getSortIcon("accuracy")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleUserSort("predictions")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Predictions {getSortIcon("predictions")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleUserSort("lastActive")}
+                      className="h-auto p-0 font-semibold"
+                    >
+                      Last Active {getSortIcon("lastActive")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <input type="checkbox" className="rounded" />
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-gray-600">
+                          {user.email}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{user.points}</Badge>
+                    </TableCell>
+                    <TableCell>{user.accuracy}%</TableCell>
+                    <TableCell>{user.predictions}</TableCell>
+                    <TableCell>{user.lastActive}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, totalUsers)} of{" "}
+                {totalUsers} participants
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+
+                {/* Page Numbers */}
+                <div className="flex space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const pageNum =
+                      Math.max(1, Math.min(totalPages - 4, currentPage - 2)) +
+                      i;
+                    if (pageNum > totalPages) return null;
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={
+                          currentPage === pageNum ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => goToPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
               </div>
             </div>
           </CardContent>
