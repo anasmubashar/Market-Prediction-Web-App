@@ -27,12 +27,7 @@ const allowedOrigins = [process.env.FRONTEND_URL_1, process.env.FRONTEND_URL_2];
 app.use(helmet());
 app.use(compression());
 app.use(morgan("combined"));
-app.use(
-  cors({
-    origin: allowedOrigins, // automatically matches against each entry
-    // credentials: true,      // add this if you ever need cookies/auth headers
-  })
-);
+app.use(cors("*"));
 
 // Rate limiting
 const limiter = rateLimit({
