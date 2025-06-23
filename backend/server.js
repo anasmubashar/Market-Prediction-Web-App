@@ -29,13 +29,8 @@ app.use(compression());
 app.use(morgan("combined"));
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: allowedOrigins, // automatically matches against each entry
+    // credentials: true,      // add this if you ever need cookies/auth headers
   })
 );
 
