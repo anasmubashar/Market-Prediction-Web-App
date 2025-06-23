@@ -1,10 +1,11 @@
-import React from "react";
+"use client";
 
+import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle, AlertCircle, Coins } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,33 +13,79 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { authAPI } from "./lib/api";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setIsLoading(false);
-    setIsSubmitted(true);
+    try {
+      const result = await authAPI.register(email, name);
+      console.log("Registration successful:", result);
+      setIsSubmitted(true);
+      setEmail("");
+      setName("");
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
+        {/* Header */}
+
         {/* Main Signup Card */}
         <Card className="shadow-lg">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-gray-900">TUSQ</CardTitle>
+            <CardTitle className="text-5xl font-bold text-blue-600">
+              TUSQ
+            </CardTitle>
           </CardHeader>
           <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Full Name
+                </label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="h-12"
+                  disabled={isLoading}
+                />
+              </div>
+
               <div>
                 <label
                   htmlFor="email"
@@ -67,7 +114,7 @@ export default function SignupPage() {
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    You receive 1000 points to start
+                    Confirmation email with 1000 starting points
                   </li>
                   <li className="flex items-start">
                     <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
@@ -83,7 +130,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                disabled={isLoading}
+                disabled={isLoading || !email || !name}
               >
                 {isLoading ? (
                   <div className="flex items-center">
@@ -92,7 +139,7 @@ export default function SignupPage() {
                   </div>
                 ) : (
                   <>
-                    <img src="/crypto.png" className="w-5 h-5 mr-1" />
+                    <Coins className="w-8 h-8 mr-2" />
                     Join Prediction Market
                   </>
                 )}

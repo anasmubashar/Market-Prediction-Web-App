@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
 const emailCycleSchema = new mongoose.Schema(
   {
@@ -60,12 +60,11 @@ const emailCycleSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
-module.exports = mongoose.model("EmailCycle", emailCycleSchema)
+module.exports = mongoose.model("EmailCycle", emailCycleSchema);

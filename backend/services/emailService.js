@@ -23,11 +23,11 @@ class EmailService {
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: user.email,
-        subject: "Welcome to Prediction Market Research Study",
+        subject: "Welcome to TUSQ",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Welcome to Prediction Market, ${user.name}!</h2>
-            <p>Thank you for joining our academic psychology research study.</p>
+            <h2>Welcome to TUSQ, ${user.name}!</h2>
+            <p>Thank you for joining.</p>
             
             <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3>🎉 Your Starting Balance: 1000 Points</h3>

@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -26,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +43,6 @@ import {
   Download,
   Settings,
   Mail,
-  Calendar,
   RefreshCw,
   Edit,
   Trash2,
@@ -51,6 +53,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  AlertCircle,
 } from "lucide-react";
 import {
   LineChart,
@@ -60,6 +63,17 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
+import {
+  usersAPI,
+  marketsAPI,
+  transactionsAPI,
+  emailsAPI,
+  adminAPI,
+  type User,
+  type Market,
+  type Transaction,
+  type DashboardStats,
+} from "./lib/api";
 
 type SortField =
   | "name"
@@ -77,8 +91,20 @@ type TransactionSortField =
   | "timestamp";
 
 export default function AdminDashboard() {
-  //   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  // State
+  const [users, setUsers] = useState<User[]>([]);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
+    null
+  );
+  // const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
   const [transactionPage, setTransactionPage] = useState(1);
@@ -90,156 +116,60 @@ export default function AdminDashboard() {
     useState<TransactionSortField>("timestamp");
   const [transactionSortDirection, setTransactionSortDirection] =
     useState<SortDirection>("desc");
-  const [selectedMarketId, setSelectedMarketId] = useState<string>("1");
+  const [selectedMarketId, setSelectedMarketId] = useState<string>("");
 
-  // Mock data
-  const users = [
-    {
-      id: "1",
-      email: "prof.smith@university.edu",
-      name: "Prof. John Smith",
-      points: 1247,
-      accuracy: 78,
-      predictions: 23,
-      joinDate: "2024-01-15",
-      lastActive: "2024-01-20",
-    },
-    {
-      id: "2",
-      email: "dr.chen@research.edu",
-      name: "Dr. Sarah Chen",
-      points: 890,
-      accuracy: 85,
-      predictions: 18,
-      joinDate: "2024-01-16",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "3",
-      email: "student.jones@uni.edu",
-      name: "Mike Jones",
-      points: 1456,
-      accuracy: 72,
-      predictions: 31,
-      joinDate: "2024-01-17",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "4",
-      email: "prof.williams@college.edu",
-      name: "Prof. Emily Williams",
-      points: 2103,
-      accuracy: 91,
-      predictions: 45,
-      joinDate: "2024-01-18",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "5",
-      email: "dr.garcia@research.org",
-      name: "Dr. Carlos Garcia",
-      points: 756,
-      accuracy: 68,
-      predictions: 15,
-      joinDate: "2024-01-19",
-      lastActive: "2024-01-20",
-    },
-    {
-      id: "6",
-      email: "student.taylor@uni.edu",
-      name: "Alex Taylor",
-      points: 1834,
-      accuracy: 83,
-      predictions: 38,
-      joinDate: "2024-01-20",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "7",
-      email: "prof.brown@academy.edu",
-      name: "Prof. Lisa Brown",
-      points: 945,
-      accuracy: 76,
-      predictions: 21,
-      joinDate: "2024-01-21",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "8",
-      email: "dr.wilson@institute.edu",
-      name: "Dr. Robert Wilson",
-      points: 1567,
-      accuracy: 88,
-      predictions: 29,
-      joinDate: "2024-01-22",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "9",
-      email: "student.davis@college.edu",
-      name: "Jordan Davis",
-      points: 623,
-      accuracy: 65,
-      predictions: 12,
-      joinDate: "2024-01-23",
-      lastActive: "2024-01-20",
-    },
-    {
-      id: "10",
-      email: "prof.miller@university.edu",
-      name: "Prof. David Miller",
-      points: 2245,
-      accuracy: 94,
-      predictions: 52,
-      joinDate: "2024-01-24",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "11",
-      email: "dr.anderson@research.edu",
-      name: "Dr. Maria Anderson",
-      points: 1123,
-      accuracy: 79,
-      predictions: 26,
-      joinDate: "2024-01-25",
-      lastActive: "2024-01-21",
-    },
-    {
-      id: "12",
-      email: "student.white@uni.edu",
-      name: "Sam White",
-      points: 1789,
-      accuracy: 81,
-      predictions: 34,
-      joinDate: "2024-01-26",
-      lastActive: "2024-01-20",
-    },
-  ];
-
-  // Sort users
-  const sortedUsers = [...users].sort((a, b) => {
-    let aValue: any = a[userSortField];
-    let bValue: any = b[userSortField];
-
-    if (userSortField === "joinDate" || userSortField === "lastActive") {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
-    }
-
-    if (aValue < bValue) return userSortDirection === "asc" ? -1 : 1;
-    if (aValue > bValue) return userSortDirection === "asc" ? 1 : -1;
-    return 0;
+  // New market form
+  const [newMarket, setNewMarket] = useState({
+    title: "",
+    description: "",
+    deadline: "",
+    tags: "",
   });
 
-  // Pagination calculations
-  const totalUsers = sortedUsers.length;
-  const totalPages = Math.ceil(totalUsers / usersPerPage);
-  const startIndex = (currentPage - 1) * usersPerPage;
-  const endIndex = startIndex + usersPerPage;
-  const currentUsers = sortedUsers.slice(startIndex, endIndex);
+  // Load initial data
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const [statsResult, usersResult, marketsResult, transactionsResult] =
+        await Promise.all([
+          adminAPI.getDashboardStats(),
+          usersAPI.getUsers(
+            currentPage,
+            usersPerPage,
+            userSortField,
+            userSortDirection
+          ),
+          marketsAPI.getMarkets("active"),
+          transactionsAPI.getTransactions(
+            transactionPage,
+            transactionsPerPage,
+            transactionSortField,
+            transactionSortDirection
+          ),
+        ]);
+
+      setDashboardStats(statsResult);
+      setUsers(usersResult.users);
+      setMarkets(marketsResult.markets);
+      setTransactions(transactionsResult.transactions);
+
+      if (marketsResult.markets.length > 0 && !selectedMarketId) {
+        setSelectedMarketId(marketsResult.markets[0]._id);
+      }
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load dashboard data"
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUserSort = (field: SortField) => {
@@ -249,176 +179,8 @@ export default function AdminDashboard() {
       setUserSortField(field);
       setUserSortDirection("asc");
     }
-    setCurrentPage(1); // Reset to first page when sorting
-  };
-
-  const transactions = [
-    {
-      id: "1",
-      userId: "1",
-      userName: "Prof. John Smith",
-      action: "BUY 50",
-      market: "Inflation > 3% Q2 2024",
-      points: -50,
-      timestamp: "2024-01-21 14:30",
-    },
-    {
-      id: "2",
-      userId: "2",
-      userName: "Dr. Sarah Chen",
-      action: "SELL 30",
-      market: "AI Breakthrough 2024",
-      points: +30,
-      timestamp: "2024-01-21 13:15",
-    },
-    {
-      id: "3",
-      userId: "3",
-      userName: "Mike Jones",
-      action: "BUY 75",
-      market: "Climate Policy Changes",
-      points: -75,
-      timestamp: "2024-01-21 12:45",
-    },
-    {
-      id: "4",
-      userId: "4",
-      userName: "Prof. Emily Williams",
-      action: "BUY 100",
-      market: "Tech Stock Rally",
-      points: -100,
-      timestamp: "2024-01-21 11:20",
-    },
-    {
-      id: "5",
-      userId: "5",
-      userName: "Dr. Carlos Garcia",
-      action: "SELL 25",
-      market: "Election Outcome",
-      points: +25,
-      timestamp: "2024-01-21 10:15",
-    },
-    {
-      id: "6",
-      userId: "6",
-      userName: "Alex Taylor",
-      action: "BUY 80",
-      market: "Climate Policy Changes",
-      points: -80,
-      timestamp: "2024-01-21 09:30",
-    },
-    {
-      id: "7",
-      userId: "7",
-      userName: "Prof. Lisa Brown",
-      action: "SELL 45",
-      market: "AI Breakthrough 2024",
-      points: +45,
-      timestamp: "2024-01-21 08:45",
-    },
-    {
-      id: "8",
-      userId: "8",
-      userName: "Dr. Robert Wilson",
-      action: "BUY 60",
-      market: "Inflation > 3% Q2 2024",
-      points: -60,
-      timestamp: "2024-01-20 16:20",
-    },
-    {
-      id: "9",
-      userId: "9",
-      userName: "Jordan Davis",
-      action: "SELL 35",
-      market: "Tech Stock Rally",
-      points: +35,
-      timestamp: "2024-01-20 15:10",
-    },
-    {
-      id: "10",
-      userId: "10",
-      userName: "Prof. David Miller",
-      action: "BUY 120",
-      market: "Election Outcome",
-      points: -120,
-      timestamp: "2024-01-20 14:30",
-    },
-    {
-      id: "11",
-      userId: "11",
-      userName: "Dr. Maria Anderson",
-      action: "SELL 55",
-      market: "Climate Policy Changes",
-      points: +55,
-      timestamp: "2024-01-20 13:45",
-    },
-    {
-      id: "12",
-      userId: "12",
-      userName: "Sam White",
-      action: "BUY 90",
-      market: "AI Breakthrough 2024",
-      points: -90,
-      timestamp: "2024-01-20 12:15",
-    },
-    {
-      id: "13",
-      userId: "1",
-      userName: "Prof. John Smith",
-      action: "SELL 40",
-      market: "Tech Stock Rally",
-      points: +40,
-      timestamp: "2024-01-20 11:30",
-    },
-    {
-      id: "14",
-      userId: "3",
-      userName: "Mike Jones",
-      action: "BUY 65",
-      market: "Election Outcome",
-      points: -65,
-      timestamp: "2024-01-20 10:20",
-    },
-    {
-      id: "15",
-      userId: "5",
-      userName: "Dr. Carlos Garcia",
-      action: "SELL 70",
-      market: "Inflation > 3% Q2 2024",
-      points: +70,
-      timestamp: "2024-01-20 09:15",
-    },
-  ];
-
-  // Sort transactions
-  const sortedTransactions = [...transactions].sort((a, b) => {
-    let aValue: any = a[transactionSortField];
-    let bValue: any = b[transactionSortField];
-
-    if (transactionSortField === "timestamp") {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
-    }
-
-    if (aValue < bValue) return transactionSortDirection === "asc" ? -1 : 1;
-    if (aValue > bValue) return transactionSortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  // Transaction pagination calculations
-  const totalTransactions = sortedTransactions.length;
-  const totalTransactionPages = Math.ceil(
-    totalTransactions / transactionsPerPage
-  );
-  const transactionStartIndex = (transactionPage - 1) * transactionsPerPage;
-  const transactionEndIndex = transactionStartIndex + transactionsPerPage;
-  const currentTransactions = sortedTransactions.slice(
-    transactionStartIndex,
-    transactionEndIndex
-  );
-
-  const goToTransactionPage = (page: number) => {
-    setTransactionPage(Math.max(1, Math.min(page, totalTransactionPages)));
+    setCurrentPage(1);
+    loadDashboardData();
   };
 
   const handleTransactionSort = (field: TransactionSortField) => {
@@ -430,65 +192,9 @@ export default function AdminDashboard() {
       setTransactionSortField(field);
       setTransactionSortDirection("asc");
     }
-    setTransactionPage(1); // Reset to first page when sorting
+    setTransactionPage(1);
+    loadDashboardData();
   };
-
-  const activeMarkets = [
-    {
-      id: "1",
-      title: "Will inflation exceed 3% by Q2 2024?",
-      probability: 67,
-      totalVolume: 2340,
-      participants: 45,
-      deadline: "2024-06-30",
-      status: "active",
-      probabilityHistory: [
-        { date: "2024-01-15", probability: 45 },
-        { date: "2024-01-16", probability: 48 },
-        { date: "2024-01-17", probability: 52 },
-        { date: "2024-01-18", probability: 58 },
-        { date: "2024-01-19", probability: 62 },
-        { date: "2024-01-20", probability: 65 },
-        { date: "2024-01-21", probability: 67 },
-      ],
-    },
-    {
-      id: "2",
-      title: "New AI breakthrough announced at major conference?",
-      probability: 43,
-      totalVolume: 1890,
-      participants: 38,
-      deadline: "2024-05-15",
-      status: "active",
-      probabilityHistory: [
-        { date: "2024-01-15", probability: 35 },
-        { date: "2024-01-16", probability: 38 },
-        { date: "2024-01-17", probability: 41 },
-        { date: "2024-01-18", probability: 39 },
-        { date: "2024-01-19", probability: 42 },
-        { date: "2024-01-20", probability: 44 },
-        { date: "2024-01-21", probability: 43 },
-      ],
-    },
-    {
-      id: "3",
-      title: "Climate policy changes in next 6 months?",
-      probability: 82,
-      totalVolume: 3120,
-      participants: 52,
-      deadline: "2024-08-01",
-      status: "active",
-      probabilityHistory: [
-        { date: "2024-01-15", probability: 75 },
-        { date: "2024-01-16", probability: 77 },
-        { date: "2024-01-17", probability: 79 },
-        { date: "2024-01-18", probability: 81 },
-        { date: "2024-01-19", probability: 83 },
-        { date: "2024-01-20", probability: 82 },
-        { date: "2024-01-21", probability: 82 },
-      ],
-    },
-  ];
 
   const getSortIcon = (field: SortField) => {
     if (userSortField !== field) return <ArrowUpDown className="w-4 h-4" />;
@@ -509,68 +215,108 @@ export default function AdminDashboard() {
     );
   };
 
-  const exportUserData = () => {
-    const csvContent = [
-      [
-        "Email",
-        "Name",
-        "Points",
-        "Accuracy",
-        "Predictions",
-        "Join Date",
-        "Last Active",
-      ],
-      ...users.map((user) => [
-        user.email,
-        user.name,
-        user.points,
-        `${user.accuracy}%`,
-        user.predictions,
-        user.joinDate,
-        user.lastActive,
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "prediction_market_users.csv";
-    a.click();
+  const exportUserData = async () => {
+    try {
+      await adminAPI.exportUsers();
+      setSuccess("User data exported successfully!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    }
   };
 
-  const exportTransactionData = () => {
-    const csvContent = [
-      ["User", "Action", "Market", "Points", "Timestamp"],
-      ...transactions.map((tx) => [
-        tx.userName,
-        tx.action,
-        tx.market,
-        tx.points,
-        tx.timestamp,
-      ]),
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "prediction_market_transactions.csv";
-    a.click();
+  const exportTransactionData = async () => {
+    try {
+      await adminAPI.exportTransactions();
+      setSuccess("Transaction data exported successfully!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    }
   };
 
-  const sendMarketCycle = () => {
-    setIsScheduling(true);
-    // Simulate sending emails
-    setTimeout(() => {
+  const sendMarketCycle = async () => {
+    try {
+      setIsScheduling(true);
+      setError("");
+
+      const result = await emailsAPI.sendMarketCycle();
+      setSuccess(
+        `Market cycle emails sent to ${result.emailCycle.totalRecipients} participants!`
+      );
+
+      // Refresh dashboard stats
+      const stats = await adminAPI.getDashboardStats();
+      setDashboardStats(stats);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to send market cycle"
+      );
+    } finally {
       setIsScheduling(false);
-      alert("Market cycle emails sent to all participants!");
-    }, 2000);
+    }
   };
+
+  const createMarket = async () => {
+    try {
+      setError("");
+
+      if (!newMarket.title || !newMarket.deadline) {
+        setError("Title and deadline are required");
+        return;
+      }
+
+      const marketData = {
+        title: newMarket.title,
+        description: newMarket.description,
+        deadline: newMarket.deadline,
+        tags: newMarket.tags
+          ? newMarket.tags.split(",").map((tag) => tag.trim())
+          : [],
+      };
+
+      await marketsAPI.createMarket(marketData);
+      setSuccess("Market created successfully!");
+      setNewMarket({ title: "", description: "", deadline: "", tags: "" });
+
+      // Refresh markets
+      const marketsResult = await marketsAPI.getMarkets("active");
+      setMarkets(marketsResult.markets);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create market");
+    }
+  };
+
+  const deleteMarket = async (marketId: string) => {
+    try {
+      setError("");
+      await marketsAPI.deleteMarket(marketId);
+      setSuccess("Market deleted successfully!");
+
+      // Refresh markets
+      const marketsResult = await marketsAPI.getMarkets("active");
+      setMarkets(marketsResult.markets);
+
+      if (selectedMarketId === marketId && marketsResult.markets.length > 0) {
+        setSelectedMarketId(marketsResult.markets[0]._id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete market");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedMarket = markets.find(
+    (market) => market._id === selectedMarketId
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -590,13 +336,29 @@ export default function AdminDashboard() {
               variant="outline"
               className="text-green-600 border-green-600"
             >
-              {users.length} Active Participants
+              {dashboardStats?.users.active || 0} Active Participants
             </Badge>
           </div>
         </div>
       </header>
 
       <div className="p-6 space-y-6">
+        {/* Alerts */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="border-green-200 bg-green-50">
+            <AlertDescription className="text-green-800">
+              {success}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Button
@@ -647,23 +409,64 @@ export default function AdminDashboard() {
                   <Textarea
                     id="market-title"
                     placeholder="Will [event] happen by [date]?"
+                    value={newMarket.title}
+                    onChange={(e) =>
+                      setNewMarket({ ...newMarket, title: e.target.value })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="market-description">
+                    Description (Optional)
+                  </Label>
+                  <Textarea
+                    id="market-description"
+                    placeholder="Additional context..."
+                    value={newMarket.description}
+                    onChange={(e) =>
+                      setNewMarket({
+                        ...newMarket,
+                        description: e.target.value,
+                      })
+                    }
                     className="mt-1"
                   />
                 </div>
                 <div>
                   <Label htmlFor="deadline">Deadline</Label>
-                  <Input id="deadline" type="date" className="mt-1" />
+                  <Input
+                    id="deadline"
+                    type="datetime-local"
+                    value={newMarket.deadline}
+                    onChange={(e) =>
+                      setNewMarket({ ...newMarket, deadline: e.target.value })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="tags">Tags (comma-separated)</Label>
+                  <Input
+                    id="tags"
+                    placeholder="economics, politics, technology"
+                    value={newMarket.tags}
+                    onChange={(e) =>
+                      setNewMarket({ ...newMarket, tags: e.target.value })
+                    }
+                    className="mt-1"
+                  />
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline">Cancel</Button>
-                  <Button>Create Market</Button>
+                  <Button onClick={createMarket}>Create Market</Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* 1. Market Management */}
+        {/* Market Management */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -692,8 +495,8 @@ export default function AdminDashboard() {
                       <SelectValue placeholder="Choose a market" />
                     </SelectTrigger>
                     <SelectContent>
-                      {activeMarkets.map((market) => (
-                        <SelectItem key={market.id} value={market.id}>
+                      {markets.map((market) => (
+                        <SelectItem key={market._id} value={market._id}>
                           {market.title.length > 50
                             ? `${market.title.substring(0, 50)}...`
                             : market.title}
@@ -706,145 +509,145 @@ export default function AdminDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {(() => {
-              const selectedMarket = activeMarkets.find(
-                (market) => market.id === selectedMarketId
-              );
-              if (!selectedMarket) return <div>Market not found</div>;
-
-              return (
-                <div className="border rounded-lg p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Market Info */}
-                    <div>
-                      <h3 className="font-semibold text-lg mb-4">
-                        {selectedMarket.title}
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <Label className="text-sm text-gray-600">
-                            Current Probability
-                          </Label>
-                          <div className="text-2xl font-bold text-indigo-600">
-                            {selectedMarket.probability}%
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-sm text-gray-600">
-                            Total Volume
-                          </Label>
-                          <div className="text-lg font-semibold">
-                            {selectedMarket.totalVolume}
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-sm text-gray-600">
-                            Participants
-                          </Label>
-                          <div className="text-lg font-semibold">
-                            {selectedMarket.participants}
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-sm text-gray-600">
-                            Deadline
-                          </Label>
-                          <div className="text-lg font-semibold">
-                            {selectedMarket.deadline}
-                          </div>
+            {selectedMarket ? (
+              <div className="border rounded-lg p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Market Info */}
+                  <div>
+                    <h3 className="font-semibold text-lg mb-4">
+                      {selectedMarket.title}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <Label className="text-sm text-gray-600">
+                          Current Probability
+                        </Label>
+                        <div className="text-2xl font-bold text-indigo-600">
+                          {selectedMarket.currentProbability}%
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Settings className="w-4 h-4 mr-2" />
-                          Settings
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </Button>
+                      <div>
+                        <Label className="text-sm text-gray-600">
+                          Total Volume
+                        </Label>
+                        <div className="text-lg font-semibold">
+                          {selectedMarket.totalVolume}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-gray-600">
+                          Participants
+                        </Label>
+                        <div className="text-lg font-semibold">
+                          {selectedMarket.participantCount}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-gray-600">
+                          Deadline
+                        </Label>
+                        <div className="text-lg font-semibold">
+                          {new Date(
+                            selectedMarket.deadline
+                          ).toLocaleDateString()}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600"
+                        onClick={() => deleteMarket(selectedMarket._id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
 
-                    {/* Probability History Graph */}
-                    <div className="min-w-0">
-                      <Label className="text-sm text-gray-600 mb-2 block">
-                        Probability History
-                      </Label>
-                      <div className="w-full h-[250px] border rounded-lg p-4 bg-white">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart
-                            data={selectedMarket.probabilityHistory}
-                            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-                          >
-                            <CartesianGrid
-                              strokeDasharray="3 3"
-                              stroke="#e0e0e0"
-                            />
-                            <XAxis
-                              dataKey="date"
-                              tickFormatter={(value) =>
-                                new Date(value).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                })
+                  {/* Probability History Graph */}
+                  <div className="min-w-0">
+                    <Label className="text-sm text-gray-600 mb-2 block">
+                      Probability History
+                    </Label>
+                    <div className="w-full h-[250px] border rounded-lg p-4 bg-white">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={selectedMarket.probabilityHistory}
+                          margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#e0e0e0"
+                          />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={(value) =>
+                              new Date(value).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })
+                            }
+                            fontSize={12}
+                            stroke="#666"
+                          />
+                          <YAxis
+                            domain={[0, 100]}
+                            fontSize={12}
+                            stroke="#666"
+                          />
+                          <ChartTooltip
+                            content={({ active, payload, label }) => {
+                              if (active && payload && payload.length) {
+                                return (
+                                  <div className="bg-white p-2 border rounded shadow">
+                                    <p className="text-sm">{`Date: ${new Date(
+                                      label
+                                    ).toLocaleDateString()}`}</p>
+                                    <p className="text-sm font-semibold text-indigo-600">{`Probability: ${payload[0].value}%`}</p>
+                                  </div>
+                                );
                               }
-                              fontSize={12}
-                              stroke="#666"
-                            />
-                            <YAxis
-                              domain={[0, 100]}
-                              fontSize={12}
-                              stroke="#666"
-                            />
-                            <ChartTooltip
-                              content={({ active, payload, label }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="bg-white p-2 border rounded shadow">
-                                      <p className="text-sm">{`Date: ${new Date(
-                                        label
-                                      ).toLocaleDateString()}`}</p>
-                                      <p className="text-sm font-semibold text-indigo-600">{`Probability: ${payload[0].value}%`}</p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="probability"
-                              stroke="#4f46e5"
-                              strokeWidth={3}
-                              dot={{ fill: "#4f46e5", strokeWidth: 2, r: 4 }}
-                              activeDot={{
-                                r: 6,
-                                stroke: "#4f46e5",
-                                strokeWidth: 2,
-                                fill: "#fff",
-                              }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                              return null;
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="probability"
+                            stroke="#4f46e5"
+                            strokeWidth={3}
+                            dot={{ fill: "#4f46e5", strokeWidth: 2, r: 4 }}
+                            activeDot={{
+                              r: 6,
+                              stroke: "#4f46e5",
+                              strokeWidth: 2,
+                              fill: "#fff",
+                            }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 </div>
-              );
-            })()}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No markets available. Create a new market to get started.
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* 2. Transaction Monitoring */}
+        {/* Transaction Monitoring */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -907,218 +710,51 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentTransactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell>{tx.userName}</TableCell>
+                {transactions.map((tx) => (
+                  <TableRow key={tx._id}>
+                    <TableCell>{tx.user.name}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={
-                          tx.action.startsWith("BUY") ? "default" : "secondary"
-                        }
+                        variant={tx.type === "BUY" ? "default" : "secondary"}
                       >
-                        {tx.action}
+                        {tx.type} {tx.amount}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate">
-                      {tx.market}
+                      {tx.market.title}
                     </TableCell>
                     <TableCell>
                       <span
                         className={
-                          tx.points > 0 ? "text-green-600" : "text-red-600"
+                          tx.pointsChange > 0
+                            ? "text-green-600"
+                            : "text-red-600"
                         }
                       >
-                        {tx.points > 0 ? "+" : ""}
-                        {tx.points}
+                        {tx.pointsChange > 0 ? "+" : ""}
+                        {tx.pointsChange}
                       </span>
                     </TableCell>
-                    <TableCell>{tx.timestamp}</TableCell>
+                    <TableCell>
+                      {new Date(tx.createdAt).toLocaleString()}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            {/* Transaction Pagination Controls */}
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                Showing {transactionStartIndex + 1} to{" "}
-                {Math.min(transactionEndIndex, totalTransactions)} of{" "}
-                {totalTransactions} transactions
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToTransactionPage(transactionPage - 1)}
-                  disabled={transactionPage === 1}
-                >
-                  Previous
-                </Button>
-
-                {/* Transaction Page Numbers */}
-                <div className="flex space-x-1">
-                  {Array.from(
-                    { length: Math.min(5, totalTransactionPages) },
-                    (_, i) => {
-                      const pageNum =
-                        Math.max(
-                          1,
-                          Math.min(
-                            totalTransactionPages - 4,
-                            transactionPage - 2
-                          )
-                        ) + i;
-                      if (pageNum > totalTransactionPages) return null;
-
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={
-                            transactionPage === pageNum ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => goToTransactionPage(pageNum)}
-                          className="w-8 h-8 p-0"
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    }
-                  )}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToTransactionPage(transactionPage + 1)}
-                  disabled={transactionPage === totalTransactionPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        {/* 3. Email Scheduling */}
+        {/* User Database */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2" />
-              Market Cycle Scheduling
+              <Users className="w-5 h-5 mr-2" />
+              User Database
             </CardTitle>
-            <CardDescription>Schedule and manage email cycles</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="cycle-frequency">Email Frequency</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="manual">Manual Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="next-cycle">Next Scheduled Cycle</Label>
-                  <Input id="next-cycle" type="datetime-local" />
-                </div>
-                <Button className="w-full">Update Schedule</Button>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <Label>Last Email Sent</Label>
-                  <p className="text-sm text-gray-600">
-                    January 21, 2024 at 2:00 PM
-                  </p>
-                </div>
-                <div>
-                  <Label>Emails Delivered</Label>
-                  <p className="text-sm text-gray-600">
-                    156 of 156 participants
-                  </p>
-                </div>
-                <div>
-                  <Label>Response Rate</Label>
-                  <p className="text-sm text-gray-600">89% (139 responses)</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 4. User Database */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center">
-                  <Users className="w-5 h-5 mr-2" />
-                  User Database
-                </CardTitle>
-                <CardDescription>
-                  Manage participant accounts and balances
-                </CardDescription>
-              </div>
-              <div className="flex space-x-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Bulk Actions
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Bulk User Actions</DialogTitle>
-                      <DialogDescription>
-                        Apply actions to multiple users
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Action Type</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="reset-points">
-                              Reset Points to 1000
-                            </SelectItem>
-                            <SelectItem value="add-points">
-                              Add Points
-                            </SelectItem>
-                            <SelectItem value="send-email">
-                              Send Custom Email
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="points-value">
-                          Points Value (if applicable)
-                        </Label>
-                        <Input
-                          id="points-value"
-                          type="number"
-                          placeholder="100"
-                        />
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline">Cancel</Button>
-                        <Button>Apply to Selected</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
+            <CardDescription>
+              Manage participant accounts and balances
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -1176,7 +812,7 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <input type="checkbox" className="rounded" />
@@ -1192,9 +828,11 @@ export default function AdminDashboard() {
                     <TableCell>
                       <Badge variant="secondary">{user.points}</Badge>
                     </TableCell>
-                    <TableCell>{user.accuracy}%</TableCell>
-                    <TableCell>{user.predictions}</TableCell>
-                    <TableCell>{user.lastActive}</TableCell>
+                    <TableCell>{user.stats.accuracy}%</TableCell>
+                    <TableCell>{user.stats.totalPredictions}</TableCell>
+                    <TableCell>
+                      {new Date(user.lastActive).toLocaleDateString()}
+                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="ghost" size="sm">
@@ -1209,56 +847,6 @@ export default function AdminDashboard() {
                 ))}
               </TableBody>
             </Table>
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-gray-600">
-                Showing {startIndex + 1} to {Math.min(endIndex, totalUsers)} of{" "}
-                {totalUsers} participants
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-
-                {/* Page Numbers */}
-                <div className="flex space-x-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const pageNum =
-                      Math.max(1, Math.min(totalPages - 4, currentPage - 2)) +
-                      i;
-                    if (pageNum > totalPages) return null;
-
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={
-                          currentPage === pageNum ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => goToPage(pageNum)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

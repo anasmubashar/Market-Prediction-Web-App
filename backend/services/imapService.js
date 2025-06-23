@@ -33,14 +33,12 @@ class ImapService {
     this.imap.once("error", (err) => {
       console.error("IMAP connection error:", err);
       this.isConnected = false;
-      // Attempt to reconnect after 30 seconds
       setTimeout(() => this.connect(), 30000);
     });
 
     this.imap.once("end", () => {
       console.log("IMAP connection ended");
       this.isConnected = false;
-      // Attempt to reconnect after 10 seconds
       setTimeout(() => this.connect(), 10000);
     });
   }
@@ -65,18 +63,15 @@ class ImapService {
   }
 
   monitorNewEmails() {
-    // Listen for new emails
     this.imap.on("mail", (numNewMsgs) => {
       console.log(`${numNewMsgs} new email(s) received`);
       this.fetchNewEmails();
     });
 
-    // Initial fetch of recent emails (but only from today to avoid processing old emails)
     this.fetchNewEmails();
   }
 
   fetchNewEmails() {
-    // Search for unseen emails from today only (to avoid processing old emails)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -95,7 +90,7 @@ class ImapService {
 
       const fetch = this.imap.fetch(results, {
         bodies: "",
-        markSeen: false, // Don't mark as seen until we process them
+        markSeen: false,
       });
 
       fetch.on("message", (msg, seqno) => {
@@ -121,11 +116,11 @@ class ImapService {
   async processEmail(rawEmail, seqno) {
     try {
       const parsed = await simpleParser(rawEmail);
-
-      // Extract sender email
       const senderEmail = parsed.from.value[0].address;
 
-      // Check if this is from a registered user FIRST
+      console.log(`📧 Processing email from: ${senderEmail}`);
+      console.log(`📧 Subject: ${parsed.subject}`);
+
       const user = await User.findOne({ email: senderEmail });
       if (!user) {
         console.log(`📧 Skipping email from non-participant: ${senderEmail}`);
@@ -134,25 +129,43 @@ class ImapService {
       }
 
       console.log(`📧 Processing email from registered user: ${senderEmail}`);
+      console.log(
+        `📧 User preferences - Notifications: ${user.preferences.emailNotifications}, Updates: ${user.preferences.marketUpdates}`
+      );
 
-      // Extract email content
-      const content = parsed.text || parsed.html || "";
+      // Get both text and HTML content for debugging
+      const textContent = parsed.text || "";
+      const htmlContent = parsed.html || "";
 
-      // Check for unsubscribe request
+      console.log(`📧 Email text content:`);
+      console.log(`"${textContent}"`);
+      console.log(`📧 Email HTML content:`);
+      console.log(`"${htmlContent}"`);
+
+      // Try parsing from both text and HTML
+      const content = textContent || htmlContent;
+
       if (this.isUnsubscribeRequest(content)) {
+        console.log(`📧 Unsubscribe request detected from ${senderEmail}`);
         await this.handleUnsubscribe(user);
         this.markEmailAsSeen(seqno);
         return;
       }
 
-      // Parse trading commands
       const commands = this.parseCommands(content);
+
+      console.log(`📧 Parsed commands:`, commands);
 
       if (commands.length === 0) {
         console.log(
           `📧 No valid trading commands found in email from ${senderEmail}`
         );
-        // Don't send error emails for emails without commands - just mark as seen
+        console.log(`📧 Full email content for debugging:`);
+        console.log(`Text: "${textContent}"`);
+        console.log(`HTML: "${htmlContent}"`);
+
+        // Send debug email to help user
+        await this.sendDebugEmail(user, content);
         this.markEmailAsSeen(seqno);
         return;
       }
@@ -162,12 +175,10 @@ class ImapService {
         commands
       );
 
-      // Process each command
       for (const command of commands) {
         await this.processCommand(user, command, parsed.messageId);
       }
 
-      // Mark email as processed
       this.markEmailAsSeen(seqno);
     } catch (error) {
       console.error("Error processing email:", error);
@@ -188,19 +199,16 @@ class ImapService {
   }
 
   isUnsubscribeRequest(content) {
-    // Clean the content - remove HTML tags and extra whitespace
     const cleanContent = content
-      .replace(/<[^>]*>/g, " ") // Remove HTML tags
-      .replace(/\s+/g, " ") // Normalize whitespace
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
 
     const lines = cleanContent.split("\n");
 
-    // Check for explicit unsubscribe commands at the start of lines
     for (const line of lines) {
       const trimmedLine = line.trim().toLowerCase();
 
-      // Only trigger on explicit, standalone unsubscribe commands
       if (
         trimmedLine === "unsubscribe" ||
         trimmedLine === "stop" ||
@@ -221,7 +229,6 @@ class ImapService {
       user.preferences.marketUpdates = false;
       await user.save();
 
-      // Send confirmation email
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: user.email,
@@ -239,61 +246,228 @@ class ImapService {
   parseCommands(content) {
     const commands = [];
 
-    // Clean the content - remove HTML tags and extra whitespace
+    console.log(`🔍 Parsing commands from content: "${content}"`);
+
+    // Clean the content more aggressively
     const cleanContent = content
       .replace(/<[^>]*>/g, " ") // Remove HTML tags
+      .replace(/&nbsp;/g, " ") // Remove HTML entities
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\r\n/g, "\n") // Normalize line endings
+      .replace(/\r/g, "\n")
       .replace(/\s+/g, " ") // Normalize whitespace
       .trim();
 
-    const lines = cleanContent.split("\n");
+    console.log(`🔍 Cleaned content: "${cleanContent}"`);
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
+    // Split by various delimiters and check each part
+    const parts = cleanContent.split(/[\n\r\t,;.!?]/);
 
-      // Skip empty lines or lines that are too long (likely not commands)
-      if (!trimmedLine || trimmedLine.length > 100) continue;
+    for (const part of parts) {
+      const trimmedPart = part.trim();
 
-      const upperLine = trimmedLine.toUpperCase();
+      if (!trimmedPart || trimmedPart.length > 100) continue;
 
-      // Very strict patterns - must be at start of line or after whitespace
-      // and must be followed by a number
-      const buyMatch = upperLine.match(/^BUY\s+(\d+)(?:\s+(.+))?$/);
-      const sellMatch = upperLine.match(/^SELL\s+(\d+)(?:\s+(.+))?$/);
+      console.log(`🔍 Checking part: "${trimmedPart}"`);
 
-      if (buyMatch) {
-        const amount = Number.parseInt(buyMatch[1]);
-        // Validate reasonable amount (1-1000)
-        if (amount >= 1 && amount <= 1000) {
-          commands.push({
-            action: "BUY",
-            amount: amount,
-            marketHint: buyMatch[2] ? buyMatch[2].trim() : null,
-          });
+      const upperPart = trimmedPart.toUpperCase();
+
+      // More flexible regex patterns
+      const buyPatterns = [
+        /^BUY\s+(\d+)(?:\s+(.+))?$/i,
+        /^B\s+(\d+)(?:\s+(.+))?$/i,
+        /(\d+)\s*BUY/i,
+        /BUY.*?(\d+)/i,
+      ];
+
+      const sellPatterns = [
+        /^SELL\s+(\d+)(?:\s+(.+))?$/i,
+        /^S\s+(\d+)(?:\s+(.+))?$/i,
+        /(\d+)\s*SELL/i,
+        /SELL.*?(\d+)/i,
+      ];
+
+      // Try buy patterns
+      for (const pattern of buyPatterns) {
+        const match = trimmedPart.match(pattern);
+        if (match) {
+          const amount = Number.parseInt(match[1]);
+          if (amount >= 1 && amount <= 1000) {
+            console.log(`✅ Found BUY command: ${amount}`);
+            commands.push({
+              action: "BUY",
+              amount: amount,
+              marketHint: match[2] ? match[2].trim() : null,
+            });
+            break;
+          }
         }
-      } else if (sellMatch) {
-        const amount = Number.parseInt(sellMatch[1]);
-        // Validate reasonable amount (1-1000)
-        if (amount >= 1 && amount <= 1000) {
-          commands.push({
-            action: "SELL",
-            amount: amount,
-            marketHint: sellMatch[2] ? sellMatch[2].trim() : null,
-          });
+      }
+
+      // Try sell patterns
+      for (const pattern of sellPatterns) {
+        const match = trimmedPart.match(pattern);
+        if (match) {
+          const amount = Number.parseInt(match[1]);
+          if (amount >= 1 && amount <= 1000) {
+            console.log(`✅ Found SELL command: ${amount}`);
+            commands.push({
+              action: "SELL",
+              amount: amount,
+              marketHint: match[2] ? match[2].trim() : null,
+            });
+            break;
+          }
+        }
+      }
+
+      // Simple word-based parsing as fallback
+      const words = upperPart.split(/\s+/);
+      for (let i = 0; i < words.length - 1; i++) {
+        if (
+          (words[i] === "BUY" || words[i] === "B") &&
+          /^\d+$/.test(words[i + 1])
+        ) {
+          const amount = Number.parseInt(words[i + 1]);
+          if (amount >= 1 && amount <= 1000) {
+            console.log(`✅ Found BUY command (word-based): ${amount}`);
+            commands.push({
+              action: "BUY",
+              amount: amount,
+              marketHint: words.slice(i + 2).join(" ") || null,
+            });
+          }
+        }
+        if (
+          (words[i] === "SELL" || words[i] === "S") &&
+          /^\d+$/.test(words[i + 1])
+        ) {
+          const amount = Number.parseInt(words[i + 1]);
+          if (amount >= 1 && amount <= 1000) {
+            console.log(`✅ Found SELL command (word-based): ${amount}`);
+            commands.push({
+              action: "SELL",
+              amount: amount,
+              marketHint: words.slice(i + 2).join(" ") || null,
+            });
+          }
         }
       }
     }
 
-    return commands;
+    // Remove duplicates
+    const uniqueCommands = commands.filter(
+      (command, index, self) =>
+        index ===
+        self.findIndex(
+          (c) => c.action === command.action && c.amount === command.amount
+        )
+    );
+
+    console.log(`🔍 Final parsed commands:`, uniqueCommands);
+    return uniqueCommands;
+  }
+
+  async sendDebugEmail(user, originalContent) {
+    try {
+      console.log(`📧 Sending debug email to ${user.email}`);
+
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "Command Not Recognized - Prediction Market",
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>🤖 Command Not Recognized</h2>
+          <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107;">
+            <p><strong>We couldn't understand your trading command.</strong></p>
+            <p>Your message: <code>"${originalContent.substring(0, 200)}${
+          originalContent.length > 200 ? "..." : ""
+        }"</code></p>
+          </div>
+          
+          <div style="margin-top: 20px;">
+            <h3>✅ Correct Format Examples:</h3>
+            <ul style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
+              <li><strong>BUY 50</strong> - Buy 50 shares</li>
+              <li><strong>SELL 25</strong> - Sell 25 shares</li>
+              <li><strong>BUY 100 INFLATION</strong> - Buy 100 shares in inflation market</li>
+              <li><strong>B 75</strong> - Short form for buy</li>
+              <li><strong>S 30</strong> - Short form for sell</li>
+            </ul>
+          </div>
+
+          <div style="margin-top: 20px; background-color: #e3f2fd; padding: 15px; border-radius: 8px;">
+            <h4>💡 Tips:</h4>
+            <ul>
+              <li>Keep it simple: just "BUY 50" or "SELL 25"</li>
+              <li>Use numbers between 1 and 1000</li>
+              <li>Avoid extra formatting or signatures</li>
+              <li>Reply directly to market emails</li>
+            </ul>
+          </div>
+
+          <p>Your current balance: <strong>${user.points} points</strong></p>
+          
+          <p style="margin-top: 20px;">
+            <strong>Try again!</strong> Just reply with a simple command like "BUY 50"
+          </p>
+        </div>
+      `,
+        text: `
+Command Not Recognized
+
+We couldn't understand your trading command.
+Your message: "${originalContent.substring(0, 200)}${
+          originalContent.length > 200 ? "..." : ""
+        }"
+
+Correct Format Examples:
+- BUY 50 (Buy 50 shares)
+- SELL 25 (Sell 25 shares)
+- BUY 100 INFLATION (Buy 100 shares in inflation market)
+
+Tips:
+- Keep it simple: just "BUY 50" or "SELL 25"
+- Use numbers between 1 and 1000
+- Avoid extra formatting or signatures
+
+Your current balance: ${user.points} points
+
+Try again! Just reply with a simple command like "BUY 50"
+      `,
+      };
+
+      await emailService.transporter.sendMail(mailOptions);
+      console.log(`✅ Debug email sent successfully to ${user.email}`);
+    } catch (error) {
+      console.error(
+        `❌ Failed to send debug email to ${user.email}:`,
+        error.message
+      );
+    }
   }
 
   async processCommand(user, command, messageId) {
     try {
-      // Find the most likely market
+      console.log(
+        `🔄 Processing command: ${command.action} ${command.amount} for user ${user.email}`
+      );
+
+      // Check if user can receive emails
+      if (!user.preferences.emailNotifications) {
+        console.log(
+          `⚠️ User ${user.email} has email notifications disabled - skipping error email`
+        );
+        return;
+      }
+
       let market;
       let marketSelectionMethod = "unknown";
 
       if (command.marketHint) {
-        // Try to find market by hint (fuzzy search)
         market = await Market.findOne({
           title: { $regex: command.marketHint, $options: "i" },
           status: "active",
@@ -302,13 +476,14 @@ class ImapService {
       }
 
       if (!market) {
-        // Get all active markets
         const activeMarkets = await Market.find({ status: "active" }).sort({
           createdAt: -1,
         });
 
         if (activeMarkets.length === 0) {
-          console.log("❌ No active markets found");
+          console.log(
+            `❌ No active markets found - sending error email to ${user.email}`
+          );
           await this.sendErrorEmail(
             user,
             "No active markets available for trading."
@@ -317,30 +492,25 @@ class ImapService {
         }
 
         if (activeMarkets.length === 1) {
-          // Only one market - use it
           market = activeMarkets[0];
           marketSelectionMethod = "single_active";
         } else {
-          // Multiple markets - use the one featured in the last email cycle
           const lastEmailCycle = await EmailCycle.findOne()
             .sort({ createdAt: -1 })
             .populate("markets");
 
           if (lastEmailCycle && lastEmailCycle.markets.length > 0) {
-            // Use the first market from the last email cycle
             market =
               lastEmailCycle.markets.find((m) => m.status === "active") ||
               activeMarkets[0];
             marketSelectionMethod = "last_email_cycle";
           } else {
-            // Fallback to most recent market
             market = activeMarkets[0];
             marketSelectionMethod = "most_recent";
           }
         }
       }
 
-      // Validate transaction
       if (command.action === "BUY" && user.points < command.amount) {
         console.log(
           `❌ User ${user.email} has insufficient points for BUY ${command.amount}`
@@ -352,18 +522,17 @@ class ImapService {
         return;
       }
 
-      // Calculate points change using LMSR
+      // Continue with transaction processing...
       let transactionResult;
       if (command.action === "BUY") {
         transactionResult = LMSRService.calculateSharesForBudget(
           market.lmsr.sharesYes,
           market.lmsr.sharesNo,
           command.amount,
-          "YES", // Default to YES for email commands
+          "YES",
           market.lmsr.beta
         );
       } else {
-        // For SELL, we need to check user's position first
         const position = await Position.findOne({
           user: user._id,
           market: market._id,
@@ -392,7 +561,6 @@ class ImapService {
           ? -transactionResult.cost || -command.amount
           : transactionResult.proceeds || command.amount;
 
-      // Create transaction
       const transaction = new Transaction({
         user: user._id,
         market: market._id,
@@ -410,13 +578,11 @@ class ImapService {
 
       await transaction.save();
 
-      // Update user points and stats
       user.points += pointsChange;
       user.stats.totalPredictions += 1;
       user.lastActive = new Date();
       await user.save();
 
-      // Update market stats and probability using LMSR
       if (command.action === "BUY") {
         market.lmsr.sharesYes += transactionResult.shares || command.amount;
         market.currentProbability =
@@ -437,7 +603,6 @@ class ImapService {
       );
       await market.save();
 
-      // Update user position
       let position = await Position.findOne({
         user: user._id,
         market: market._id,
@@ -455,7 +620,6 @@ class ImapService {
       }
       await position.save();
 
-      // Send confirmation email with market selection info
       await emailService.sendTransactionConfirmation(
         user,
         transaction,
@@ -475,9 +639,10 @@ class ImapService {
     }
   }
 
-  // Add error email method
   async sendErrorEmail(user, errorMessage) {
     try {
+      console.log(`📧 Sending error email to ${user.email}: ${errorMessage}`);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: user.email,
@@ -511,37 +676,12 @@ Tips:
       };
 
       await emailService.transporter.sendMail(mailOptions);
+      console.log(`✅ Error email sent successfully to ${user.email}`);
     } catch (error) {
-      console.error("Error sending error email:", error);
-    }
-  }
-
-  async resubscribeUser(userEmail) {
-    try {
-      const user = await User.findOne({ email: userEmail });
-      if (!user) {
-        console.log(`User not found: ${userEmail}`);
-        return false;
-      }
-
-      user.preferences.emailNotifications = true;
-      user.preferences.marketUpdates = true;
-      await user.save();
-
-      // Send re-subscription confirmation
-      const mailOptions = {
-        from: process.env.EMAIL_FROM,
-        to: user.email,
-        subject: "Re-subscribed to Prediction Market",
-        text: `Hello ${user.name},\n\nYou have been re-subscribed to prediction market emails.\n\nYou can now participate in trading again by replying to market emails with BUY/SELL commands.\n\nYour current balance: ${user.points} points`,
-      };
-
-      await emailService.transporter.sendMail(mailOptions);
-      console.log(`✅ User ${user.email} re-subscribed successfully`);
-      return true;
-    } catch (error) {
-      console.error("Error re-subscribing user:", error);
-      return false;
+      console.error(
+        `❌ Failed to send error email to ${user.email}:`,
+        error.message
+      );
     }
   }
 
