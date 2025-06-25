@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ import {
   ArrowUp,
   ArrowDown,
   AlertCircle,
+  Clock,
 } from "lucide-react";
 import {
   LineChart,
@@ -69,6 +71,8 @@ import {
   transactionsAPI,
   emailsAPI,
   adminAPI,
+  // type RecurrenceConfig,
+  type ScheduleFormData,
   type User,
   type Market,
   type Transaction,
@@ -103,6 +107,17 @@ export default function AdminDashboard() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [scheduleForm, setScheduleForm] = useState<ScheduleFormData>({
+    title: "",
+    // markets: [],
+    isActive: true,
+    recurrence: {
+      frequency: "daily",
+      timeOfDay: "09:00",
+    },
+  });
+
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
   // Pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
@@ -318,6 +333,42 @@ export default function AdminDashboard() {
     (market) => market._id === selectedMarketId
   );
 
+  const createEmailSchedule = async () => {
+    console.log(scheduleForm);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/emails/schedule`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify(scheduleForm),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Failed to create schedule:",
+          data.error || response.statusText
+        );
+        alert("Failed to create schedule: " + (data.error || "Unknown error"));
+        return;
+      }
+
+      alert("Schedule created successfully!");
+      setIsScheduleDialogOpen(false);
+      // Optionally: reset the form here
+      // setScheduleForm({ ... });
+    } catch (error) {
+      console.error("Error creating schedule:", error);
+      alert("Error creating schedule. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -360,7 +411,191 @@ export default function AdminDashboard() {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Dialog
+            open={isScheduleDialogOpen}
+            onOpenChange={setIsScheduleDialogOpen}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-20 flex-col">
+                <Clock className="w-6 h-6 mb-2" />
+                Schedule Emails
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Schedule Email Cycles</DialogTitle>
+                <DialogDescription>
+                  Set up automatic email sending for market cycles
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="schedule-title">Schedule Title</Label>
+                  <Input
+                    id="schedule-title"
+                    placeholder="Daily Market Updates"
+                    value={scheduleForm.title}
+                    onChange={(e) =>
+                      setScheduleForm({
+                        ...scheduleForm,
+                        title: e.target.value,
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="frequency">Frequency</Label>
+                  <Select
+                    value={scheduleForm.recurrence.frequency}
+                    onValueChange={(value: any) =>
+                      setScheduleForm({
+                        ...scheduleForm,
+                        recurrence: {
+                          ...scheduleForm.recurrence,
+                          frequency: value,
+                        },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="time">Time</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={scheduleForm.recurrence.timeOfDay}
+                    onChange={(e) =>
+                      setScheduleForm({
+                        ...scheduleForm,
+                        recurrence: {
+                          ...scheduleForm.recurrence,
+                          timeOfDay: e.target.value,
+                        },
+                      })
+                    }
+                    className="mt-1"
+                  />
+                </div>
+
+                {scheduleForm.recurrence.frequency === "weekly" && (
+                  <div>
+                    <Label htmlFor="day-of-week">Day of Week</Label>
+                    <Select
+                      value={
+                        scheduleForm.recurrence.dayOfWeek?.toString() || "1"
+                      }
+                      onValueChange={(value) =>
+                        setScheduleForm({
+                          ...scheduleForm,
+                          recurrence: {
+                            ...scheduleForm.recurrence,
+                            dayOfWeek: parseInt(value),
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Sunday</SelectItem>
+                        <SelectItem value="1">Monday</SelectItem>
+                        <SelectItem value="2">Tuesday</SelectItem>
+                        <SelectItem value="3">Wednesday</SelectItem>
+                        <SelectItem value="4">Thursday</SelectItem>
+                        <SelectItem value="5">Friday</SelectItem>
+                        <SelectItem value="6">Saturday</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {scheduleForm.recurrence.frequency === "monthly" && (
+                  <div>
+                    <Label htmlFor="day-of-month">Day of Month</Label>
+                    <Input
+                      id="day-of-month"
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={scheduleForm.recurrence.dayOfMonth || 1}
+                      onChange={(e) =>
+                        setScheduleForm({
+                          ...scheduleForm,
+                          recurrence: {
+                            ...scheduleForm.recurrence,
+                            dayOfMonth: parseInt(e.target.value),
+                          },
+                        })
+                      }
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+
+                {scheduleForm.recurrence.frequency === "custom" && (
+                  <div>
+                    <Label htmlFor="custom-cron">Cron Expression</Label>
+                    <Input
+                      id="custom-cron"
+                      placeholder="0 9 * * 1-5"
+                      value={scheduleForm.recurrence.customCron || ""}
+                      onChange={(e) =>
+                        setScheduleForm({
+                          ...scheduleForm,
+                          recurrence: {
+                            ...scheduleForm.recurrence,
+                            customCron: e.target.value,
+                          },
+                        })
+                      }
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Format: minute hour day month day-of-week
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is-active"
+                    checked={scheduleForm.isActive}
+                    onCheckedChange={(checked) =>
+                      setScheduleForm({ ...scheduleForm, isActive: checked })
+                    }
+                  />
+                  <Label htmlFor="is-active">Start immediately</Label>
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsScheduleDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={createEmailSchedule}>Create Schedule</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Button
             onClick={sendMarketCycle}
             disabled={isScheduling}

@@ -1,6 +1,22 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+export interface RecurrenceConfig {
+  frequency: "daily" | "weekly" | "monthly" | "custom";
+  timeOfDay: string;
+  //   time: string; // Format: "HH:mm"
+  dayOfWeek?: number; // 0 (Sunday) - 6 (Saturday) for weekly
+  dayOfMonth?: number; // 1-31 for monthly
+  customCron?: string;
+}
+
+export interface ScheduleFormData {
+  title: string;
+  //   markets: string[]; // array of market ObjectIds
+  recurrence: RecurrenceConfig;
+  isActive: boolean;
+}
+
 export interface User {
   id: string;
   email: string;

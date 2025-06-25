@@ -3,6 +3,42 @@ const User = require("../models/User");
 const Market = require("../models/Market");
 const emailService = require("../services/emailService");
 const { validationResult } = require("express-validator");
+const { getNextRunDate } = require("../utils/scheduleUtils");
+
+exports.scheduleEmailCycle = async (req, res) => {
+  try {
+    const {
+      recurrence,
+      createdBy, // optionally passed or get from req.user
+    } = req.body;
+
+    // Fetch all active markets
+    const activeMarkets = await Market.find({ status: "active" }).select("_id");
+
+    if (activeMarkets.length === 0) {
+      return res.status(400).json({ message: "No active markets found" });
+    }
+
+    const nextRun = getNextRunDate(recurrence);
+
+    const newCycle = await EmailCycle.create({
+      markets: activeMarkets.map((m) => m._id), // use all active market IDs
+      recurrence: {
+        ...recurrence,
+        nextRun,
+      },
+      status: "scheduled",
+      createdBy,
+    });
+
+    res
+      .status(201)
+      .json({ message: "Scheduled email cycle created", cycle: newCycle });
+  } catch (error) {
+    console.error("Error scheduling email cycle:", error);
+    res.status(500).json({ error: "Failed to schedule email cycle" });
+  }
+};
 
 // Send market cycle email
 exports.sendMarketCycle = async (req, res) => {

@@ -183,28 +183,31 @@ class EmailService {
 
         return `
         <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <h3 style="margin: 0 0 8px 0; color: #1f2937;">${market.title}</h3>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <span style="font-size: 24px; font-weight: bold; color: #4f46e5;">${
-                market.currentProbability
-              }%</span>
-              <span style="color: #6b7280; margin-left: 8px;">probability</span>
-            </div>
-            <div style="text-align: right; color: #6b7280; font-size: 14px;">
-              <div>Volume: ${market.totalVolume}</div>
-              <div>Deadline: ${new Date(
-                market.deadline
-              ).toLocaleDateString()}</div>
-            </div>
-          </div>
-          <img src="cid:${cid}" style="max-width: 100%; margin-top: 10px; border-radius: 6px;"/>
-          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
-            <p style="margin: 0; color: #6b7280; font-size: 14px;">
-              Reply with: <strong>BUY [amount]</strong> or <strong>SELL [amount]</strong>
-            </p>
-          </div>
-        </div>
+  <h3 style="margin: 0 0 8px 0; color: #1f2937;">${market.title}</h3>
+  
+  <div style="display: flex; align-items: center; width: 100%;">
+    <div style="min-width: 120px; margin-right: 16px; margin-bottom: 8px;">
+      <span style="font-size: 24px; font-weight: bold; color: #4f46e5;">
+        ${market.currentProbability}%
+      </span>
+      <span style="color: #6b7280; margin-left: 4px;">probability</span>
+    </div>
+    
+    <div style="text-align: right; color: #6b7280; font-size: 14px; margin-left: auto;">
+      <div>Volume: ${market.totalVolume}</div>
+      <div>Deadline: ${new Date(market.deadline).toLocaleDateString()}</div>
+    </div>
+  </div>
+
+  <img src="cid:${cid}" style="max-width: 100%; margin-top: 10px; border-radius: 6px;" />
+  
+  <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
+    <p style="margin: 0; color: #6b7280; font-size: 14px;">
+      Reply with: <strong>BUY [amount]</strong> or <strong>SELL [amount]</strong>
+    </p>
+  </div>
+</div>
+
       `;
       })
     );

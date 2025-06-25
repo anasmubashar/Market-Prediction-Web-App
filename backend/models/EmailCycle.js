@@ -4,7 +4,7 @@ const emailCycleSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: true,
+      // required: true,
     },
     markets: [
       {
@@ -12,6 +12,29 @@ const emailCycleSchema = new mongoose.Schema(
         ref: "Market",
       },
     ],
+    recurrence: {
+      frequency: {
+        type: String,
+        enum: ["none", "daily", "weekly", "monthly"],
+        default: "none",
+      },
+      timeOfDay: {
+        type: String, // "14:30" (24-hour format)
+        default: null,
+      },
+      dayOfWeek: {
+        type: Number, // 0 = Sunday, 6 = Saturday
+        default: null,
+      },
+      dayOfMonth: {
+        type: Number, // 1 to 31
+        default: null,
+      },
+      nextRun: {
+        type: Date,
+        default: null,
+      },
+    },
     recipients: [
       {
         user: {
