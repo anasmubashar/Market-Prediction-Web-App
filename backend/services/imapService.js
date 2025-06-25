@@ -243,18 +243,6 @@ class ImapService {
     }
   }
 
-  cleanMarketHint(hint) {
-    if (!hint) return null;
-    return hint
-      .replace(/\bon\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, "")
-      .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "")
-      .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "")
-      .replace(/\bwrote:.*$/gi, "")
-      .replace(/[^\w\s]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
   parseCommands(content) {
     const commands = [];
 
@@ -273,9 +261,6 @@ class ImapService {
       .replace(/\bon\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, "")
       .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "") // e.g. 25 Jun 2025
       .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "") // e.g. at 21:33
-      .replace(/[^\w\s]/g, "")
-      .trim()
-      .replace(/\bwrote:.*$/gi, "")
       .trim();
 
     console.log(`🔍 Cleaned content: "${cleanContent}"`);
@@ -317,7 +302,7 @@ class ImapService {
             commands.push({
               action: "BUY",
               amount: amount,
-              marketHint: cleanMarketHint(match[2] ? match[2].trim() : null),
+              marketHint: match[2] ? match[2].trim() : null,
             });
             break;
           }
@@ -334,7 +319,7 @@ class ImapService {
             commands.push({
               action: "SELL",
               amount: amount,
-              marketHint: cleanMarketHint(match[2] ? match[2].trim() : null),
+              marketHint: match[2] ? match[2].trim() : null,
             });
             break;
           }
@@ -354,7 +339,7 @@ class ImapService {
             commands.push({
               action: "BUY",
               amount: amount,
-              marketHint: cleanMarketHint(words.slice(i + 2).join(" ") || null),
+              marketHint: words.slice(i + 2).join(" ") || null,
             });
           }
         }
@@ -368,7 +353,7 @@ class ImapService {
             commands.push({
               action: "SELL",
               amount: amount,
-              marketHint: cleanMarketHint(words.slice(i + 2).join(" ") || null),
+              marketHint: words.slice(i + 2).join(" ") || null,
             });
           }
         }
