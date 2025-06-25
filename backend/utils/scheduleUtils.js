@@ -1,4 +1,4 @@
-export function getNextRunDate(recurrence) {
+function getNextRunDate(recurrence) {
   if (!recurrence || !recurrence.timeOfDay) {
     throw new Error("recurrence.timeOfDay is required");
   }
@@ -25,3 +25,5 @@ export function getNextRunDate(recurrence) {
 
   return next;
 }
+
+module.exports = { getNextRunDate };
