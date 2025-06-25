@@ -245,26 +245,13 @@ class ImapService {
 
   cleanMarketHint(hint) {
     if (!hint) return null;
-
-    console.log("Before cleaning marketHint:", hint);
-
-    const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-    let cleaned = hint.toLowerCase();
-
-    // Remove "on [day]" anywhere in the string
-    days.forEach((day) => {
-      const pattern = `on ${day}`;
-      if (cleaned.includes(pattern)) {
-        cleaned = cleaned.replace(pattern, "");
-      }
-    });
-
-    console.log("After cleaning marketHint:", cleaned);
-
-    // Remove non-word characters and extra spaces
-    return cleaned
-      .replace(/[^\w\s]/g, "") // remove punctuation
-      .replace(/\s+/g, " ") // normalize spaces
+    return hint
+      .replace(/\bon\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, "")
+      .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "")
+      .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "")
+      .replace(/\bwrote:.*$/gi, "")
+      .replace(/[^\w\s]/g, "")
+      .replace(/\s+/g, " ")
       .trim();
   }
 
