@@ -82,7 +82,7 @@ class EmailService {
       });
 
       // Generate email content
-      const { subject, htmlContent, textContent } =
+      const { subject, htmlContent, textContent, attachments } =
         await this.generateMarketEmailContent(markets);
 
       emailCycle.template = { subject, htmlContent, textContent };
@@ -98,7 +98,8 @@ class EmailService {
             markets,
             subject,
             htmlContent,
-            textContent
+            textContent,
+            attachments
           );
 
           emailCycle.recipients.push({
@@ -137,7 +138,8 @@ class EmailService {
     markets,
     subject,
     htmlContent,
-    textContent
+    textContent,
+    attachments = []
   ) {
     const mailOptions = {
       from: process.env.EMAIL_FROM,
@@ -149,6 +151,7 @@ class EmailService {
       text: textContent
         .replace("{{USER_NAME}}", user.name)
         .replace("{{USER_POINTS}}", user.points),
+      attachments,
       headers: {
         "Reply-To": process.env.EMAIL_USER,
         "Message-ID": `<${Date.now()}-${user._id}@predictionmarket.com>`,
@@ -161,11 +164,21 @@ class EmailService {
   // Generate market email content with ASCII charts
   async generateMarketEmailContent(markets) {
     const subject = `Prediction Markets Update - ${markets.length} Active Markets`;
-
+    const attachments = [];
     // Generate charts for each market
     const marketListHtml = await Promise.all(
       markets.map(async (market) => {
-        const chart = await ChartService.generateProbabilityChart(market);
+        const chartPath = await ChartService.generateProbabilityChart(
+          market,
+          market._id.toString()
+        );
+        const cid = `chart${market._id}@tusq`;
+
+        attachments.push({
+          filename: `chart-${market._id}.png`,
+          path: chartPath,
+          cid,
+        });
 
         return `
         <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
@@ -184,7 +197,7 @@ class EmailService {
               ).toLocaleDateString()}</div>
             </div>
           </div>
-          <pre style="font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">${chart}</pre>
+          <img src="cid:${cid}" style="max-width: 100%; margin-top: 10px; border-radius: 6px;"/>
           <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
             <p style="margin: 0; color: #6b7280; font-size: 14px;">
               Reply with: <strong>BUY [amount]</strong> or <strong>SELL [amount]</strong>
@@ -261,7 +274,7 @@ Academic Psychology Research Study
 Reply "UNSUBSCRIBE" to opt out
     `;
 
-    return { subject, htmlContent, textContent };
+    return { subject, htmlContent, textContent, attachments };
   }
 
   // Send transaction confirmation email

@@ -1,132 +1,136 @@
-/**
- * Chart Service - Text-based charts for email compatibility
- * This version creates ASCII charts instead of PNG images
- */
+const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
+const fs = require("fs");
+const path = require("path");
 
 class ChartService {
-  /**
-   * Generate a text-based probability chart for email
-   * @param {Object} market - Market object with probability history
-   * @param {string} userEmail - User email for logging
-   * @returns {string} - ASCII chart as text
-   */
+  static width = 600;
+  static height = 300;
+
+  static chartJSNodeCanvas = new ChartJSNodeCanvas({
+    width: this.width,
+    height: this.height,
+    backgroundColour: "white", // optional
+  });
+
+  static cleanupOldCharts() {
+    const dir = __dirname;
+    const files = fs.readdirSync(dir);
+
+    files.forEach((file) => {
+      if (file.startsWith("chart-") && file.endsWith(".png")) {
+        fs.unlinkSync(path.join(dir, file));
+      }
+    });
+  }
+
   static async generateProbabilityChart(market, userEmail = "default") {
     try {
       const history = market.probabilityHistory || [];
 
       if (history.length === 0) {
-        return this.createSimpleChart(market.currentProbability);
+        return await this.generateSimpleChartImage(
+          market.currentProbability,
+          market.title
+        );
       }
 
-      return this.createASCIIChart(history, market.title);
+      return await this.generateLineChartImage(
+        history,
+        market.title,
+        userEmail
+      );
     } catch (error) {
       console.error("Error generating chart:", error);
-      return this.createSimpleChart(market.currentProbability);
+      return null;
     }
   }
 
-  /**
-   * Create a simple text chart for single probability
-   */
-  static createSimpleChart(probability) {
-    const barLength = 50;
-    const filledLength = Math.round((probability / 100) * barLength);
-    const emptyLength = barLength - filledLength;
+  static async generateSimpleChartImage(
+    probability,
+    title = "Market Probability"
+  ) {
+    const configuration = {
+      type: "bar",
+      data: {
+        labels: ["Probability"],
+        datasets: [
+          {
+            label: "Current Probability",
+            data: [probability],
+            backgroundColor: "rgba(54, 162, 235, 0.6)",
+          },
+        ],
+      },
+      options: {
+        scales: {
+          y: { min: 0, max: 100, ticks: { stepSize: 20 } },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: title,
+            font: { size: 18 },
+          },
+        },
+      },
+    };
 
-    const bar = "█".repeat(filledLength) + "░".repeat(emptyLength);
-
-    return `
-📊 MARKET PROBABILITY: ${probability}%
-
-0%    25%    50%    75%    100%
-|      |      |      |      |
-${bar}
-
-Current Probability: ${probability}%
-    `;
+    const buffer = await this.chartJSNodeCanvas.renderToBuffer(configuration);
+    const filePath = path.join(__dirname, `chart-${Date.now()}.png`);
+    fs.writeFileSync(filePath, buffer);
+    return filePath;
   }
 
-  /**
-   * Create ASCII chart from probability history
-   */
-  static createASCIIChart(history, title) {
-    const maxPoints = Math.min(history.length, 10); // Show last 10 points
-    const recentHistory = history.slice(-maxPoints);
+  static async generateLineChartImage(history, title, userEmail = "default") {
+    this.cleanupOldCharts();
+    const labels = history.map((point) =>
+      new Date(point.date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
+    );
+    const dataPoints = history.map((point) => point.probability);
 
-    const chartHeight = 10;
-    const chartWidth = 50;
+    const configuration = {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Probability Over Time",
+            data: dataPoints,
+            fill: false,
+            borderColor: "rgb(75, 192, 192)",
+            tension: 0.3,
+          },
+        ],
+      },
+      options: {
+        scales: {
+          y: { min: 0, max: 100, ticks: { stepSize: 20 } },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: title,
+            font: { size: 18 },
+          },
+        },
+      },
+    };
 
-    let chart = `\n📊 ${title}\n\n`;
-
-    // Create chart grid
-    for (let row = chartHeight; row >= 0; row--) {
-      const percentage = (row / chartHeight) * 100;
-      let line = `${percentage.toFixed(0).padStart(3)}% |`;
-
-      for (let col = 0; col < recentHistory.length; col++) {
-        const point = recentHistory[col];
-        const normalizedValue = (point.probability / 100) * chartHeight;
-
-        if (Math.round(normalizedValue) === row) {
-          line += " ●";
-        } else if (Math.round(normalizedValue) > row) {
-          line += " |";
-        } else {
-          line += "  ";
-        }
-      }
-
-      chart += line + "\n";
-    }
-
-    // Add bottom axis
-    chart += "    +";
-    for (let i = 0; i < recentHistory.length; i++) {
-      chart += "--";
-    }
-    chart += "\n     ";
-
-    // Add dates
-    recentHistory.forEach((point, index) => {
-      if (index % 2 === 0) {
-        // Show every other date to avoid crowding
-        const date = new Date(point.date).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-        chart += date.padEnd(4);
-      }
-    });
-
-    chart += `\n\nCurrent: ${
-      recentHistory[recentHistory.length - 1]?.probability || 50
-    }%`;
-    chart += `\nTrend: ${this.calculateTrend(recentHistory)}`;
-
-    return chart;
+    const buffer = await this.chartJSNodeCanvas.renderToBuffer(configuration);
+    const filePath = path.join(
+      __dirname,
+      `chart-${Date.now()}-${userEmail}.png`
+    );
+    fs.writeFileSync(filePath, buffer);
+    return filePath;
   }
 
-  /**
-   * Calculate trend direction
-   */
-  static calculateTrend(history) {
-    if (history.length < 2) return "Stable";
-
-    const first = history[0].probability;
-    const last = history[history.length - 1].probability;
-    const change = last - first;
-
-    if (change > 5) return "📈 Rising";
-    if (change < -5) return "📉 Falling";
-    return "➡️ Stable";
-  }
-
-  /**
-   * Clean up old chart files (no-op for text charts)
-   */
   static cleanupOldCharts() {
-    // No cleanup needed for text charts
-    console.log("Text charts - no cleanup needed");
+    // Optional: clean up old PNG files
+    console.log("You can implement chart cleanup logic here if needed.");
   }
 }
 
