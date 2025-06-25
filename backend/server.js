@@ -48,7 +48,7 @@ mongoose
   .then(() => {
     console.log("Connected to MongoDB");
     // Start IMAP service after DB connection
-    // imapService.startImapListener();
+    imapService.startImapListener();
   })
   .catch((error) => {
     console.error("MongoDB connection error:", error);
