@@ -243,6 +243,18 @@ class ImapService {
     }
   }
 
+  cleanMarketHint(hint) {
+    if (!hint) return null;
+    return hint
+      .replace(/\bon\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, "")
+      .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "")
+      .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "")
+      .replace(/\bwrote:.*$/gi, "")
+      .replace(/[^\w\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   parseCommands(content) {
     const commands = [];
 
@@ -305,7 +317,7 @@ class ImapService {
             commands.push({
               action: "BUY",
               amount: amount,
-              marketHint: match[2] ? match[2].trim() : null,
+              marketHint: cleanMarketHint(match[2] ? match[2].trim() : null),
             });
             break;
           }
@@ -322,7 +334,7 @@ class ImapService {
             commands.push({
               action: "SELL",
               amount: amount,
-              marketHint: match[2] ? match[2].trim() : null,
+              marketHint: cleanMarketHint(match[2] ? match[2].trim() : null),
             });
             break;
           }
@@ -342,7 +354,7 @@ class ImapService {
             commands.push({
               action: "BUY",
               amount: amount,
-              marketHint: words.slice(i + 2).join(" ") || null,
+              marketHint: cleanMarketHint(words.slice(i + 2).join(" ") || null),
             });
           }
         }
@@ -356,7 +368,7 @@ class ImapService {
             commands.push({
               action: "SELL",
               amount: amount,
-              marketHint: words.slice(i + 2).join(" ") || null,
+              marketHint: cleanMarketHint(words.slice(i + 2).join(" ") || null),
             });
           }
         }
