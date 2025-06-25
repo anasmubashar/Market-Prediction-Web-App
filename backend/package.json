@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "imap": "node start-imap.js",
     "dev": "nodemon server.js",
     "test": "jest"
   },
