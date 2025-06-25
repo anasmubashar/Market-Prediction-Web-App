@@ -168,7 +168,7 @@ class EmailService {
     // Generate charts for each market
     const marketListHtml = await Promise.all(
       markets.map(async (market) => {
-        const chartPath = await ChartService.generateProbabilityChart(
+        const chartBuffer = await ChartService.generateProbabilityChartBuffer(
           market,
           market._id.toString()
         );
@@ -176,8 +176,9 @@ class EmailService {
 
         attachments.push({
           filename: `chart-${market._id}.png`,
-          path: chartPath,
+          content: chartBuffer,
           cid,
+          contentType: "image/png",
         });
 
         return `
@@ -210,8 +211,6 @@ class EmailService {
 
     const marketListText = await Promise.all(
       markets.map(async (market) => {
-        const chart = await ChartService.generateProbabilityChart(market);
-
         return `
 ${market.title}
 Current Probability: ${market.currentProbability}%
@@ -219,7 +218,6 @@ Volume: ${market.totalVolume} | Deadline: ${new Date(
           market.deadline
         ).toLocaleDateString()}
 
-${chart}
 
 Reply with: BUY [amount] or SELL [amount]
 ---

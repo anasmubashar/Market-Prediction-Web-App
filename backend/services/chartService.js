@@ -1,6 +1,4 @@
 const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
-const fs = require("fs");
-const path = require("path");
 
 class ChartService {
   static width = 600;
@@ -9,47 +7,34 @@ class ChartService {
   static chartJSNodeCanvas = new ChartJSNodeCanvas({
     width: this.width,
     height: this.height,
-    backgroundColour: "white", // optional
+    backgroundColour: "white",
   });
 
-  static cleanupOldCharts() {
-    const dir = __dirname;
-    const files = fs.readdirSync(dir);
-
-    files.forEach((file) => {
-      if (file.startsWith("chart-") && file.endsWith(".png")) {
-        fs.unlinkSync(path.join(dir, file));
-      }
-    });
-  }
-
-  static async generateProbabilityChart(market, userEmail = "default") {
+  // Entry point: returns buffer
+  static async generateProbabilityChartBuffer(market) {
     try {
       const history = market.probabilityHistory || [];
 
       if (history.length === 0) {
-        return await this.generateSimpleChartImage(
+        return await this.generateSimpleChartBuffer(
           market.currentProbability,
           market.title
         );
       }
 
-      return await this.generateLineChartImage(
-        history,
-        market.title,
-        userEmail
-      );
+      return await this.generateLineChartBuffer(history, market.title);
     } catch (error) {
-      console.error("Error generating chart:", error);
+      console.error("Error generating chart buffer:", error);
       return null;
     }
   }
 
-  static async generateSimpleChartImage(
+  // Bar chart for static probability
+  static async generateSimpleChartBuffer(
     probability,
     title = "Market Probability"
   ) {
-    const configuration = {
+    const config = {
       type: "bar",
       data: {
         labels: ["Probability"],
@@ -75,14 +60,11 @@ class ChartService {
       },
     };
 
-    const buffer = await this.chartJSNodeCanvas.renderToBuffer(configuration);
-    const filePath = path.join(__dirname, `chart-${Date.now()}.png`);
-    fs.writeFileSync(filePath, buffer);
-    return filePath;
+    return await this.chartJSNodeCanvas.renderToBuffer(config);
   }
 
-  static async generateLineChartImage(history, title, userEmail = "default") {
-    this.cleanupOldCharts();
+  // Line chart for historical probabilities
+  static async generateLineChartBuffer(history, title) {
     const labels = history.map((point) =>
       new Date(point.date).toLocaleDateString("en-US", {
         month: "short",
@@ -91,7 +73,7 @@ class ChartService {
     );
     const dataPoints = history.map((point) => point.probability);
 
-    const configuration = {
+    const config = {
       type: "line",
       data: {
         labels,
@@ -119,18 +101,7 @@ class ChartService {
       },
     };
 
-    const buffer = await this.chartJSNodeCanvas.renderToBuffer(configuration);
-    const filePath = path.join(
-      __dirname,
-      `chart-${Date.now()}-${userEmail}.png`
-    );
-    fs.writeFileSync(filePath, buffer);
-    return filePath;
-  }
-
-  static cleanupOldCharts() {
-    // Optional: clean up old PNG files
-    console.log("You can implement chart cleanup logic here if needed.");
+    return await this.chartJSNodeCanvas.renderToBuffer(config);
   }
 }
 
