@@ -246,6 +246,8 @@ class ImapService {
   cleanMarketHint(hint) {
     if (!hint) return null;
 
+    console.log("Before cleaning marketHint:", hint);
+
     const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
     let cleaned = hint.toLowerCase();
 
@@ -256,6 +258,8 @@ class ImapService {
         cleaned = cleaned.replace(pattern, "");
       }
     });
+
+    console.log("After cleaning marketHint:", cleaned);
 
     // Remove non-word characters and extra spaces
     return cleaned
