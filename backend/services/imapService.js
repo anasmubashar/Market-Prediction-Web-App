@@ -456,34 +456,52 @@ Try again! Just reply with a simple command like "BUY 50"
         `🔄 Processing command: ${command.action} ${command.amount} for user ${user.email}`
       );
 
-      // Check if user can receive emails
+      // Check user preferences
       if (!user.preferences.emailNotifications) {
         console.log(
-          `⚠️ User ${user.email} has email notifications disabled - skipping error email`
+          `⚠️ User ${user.email} has email notifications disabled - skipping`
         );
         return;
       }
 
+      // Market selection logic
       let market;
       let marketSelectionMethod = "unknown";
 
+      // Step 1: Try exact match using marketHint
       if (command.marketHint) {
+        const cleanHint = command.marketHint.replace(/[^\w\s]/g, "").trim();
+        console.log(`🔍 Looking for market with hint: "${cleanHint}"`);
+
         market = await Market.findOne({
-          title: { $regex: command.marketHint, $options: "i" },
+          title: { $regex: cleanHint, $options: "i" },
           status: "active",
         });
-        marketSelectionMethod = "hint";
+
+        if (market) {
+          marketSelectionMethod = "hint_match";
+        } else {
+          console.warn(`⚠️ No market matched hint - trying contains`);
+
+          // Step 2: Fuzzy contains match
+          const allMarkets = await Market.find({ status: "active" });
+          market = allMarkets.find((m) =>
+            m.title.toLowerCase().includes(cleanHint.toLowerCase())
+          );
+
+          if (market) {
+            marketSelectionMethod = "fuzzy_contains_match";
+          }
+        }
       }
 
+      // Step 3: Fallbacks
       if (!market) {
         const activeMarkets = await Market.find({ status: "active" }).sort({
           createdAt: -1,
         });
 
         if (activeMarkets.length === 0) {
-          console.log(
-            `❌ No active markets found - sending error email to ${user.email}`
-          );
           await this.sendErrorEmail(
             user,
             "No active markets available for trading."
@@ -493,7 +511,7 @@ Try again! Just reply with a simple command like "BUY 50"
 
         if (activeMarkets.length === 1) {
           market = activeMarkets[0];
-          marketSelectionMethod = "single_active";
+          marketSelectionMethod = "single_active_market";
         } else {
           const lastEmailCycle = await EmailCycle.findOne()
             .sort({ createdAt: -1 })
@@ -503,26 +521,33 @@ Try again! Just reply with a simple command like "BUY 50"
             market =
               lastEmailCycle.markets.find((m) => m.status === "active") ||
               activeMarkets[0];
-            marketSelectionMethod = "last_email_cycle";
+            marketSelectionMethod = "last_email_cycle_fallback";
           } else {
             market = activeMarkets[0];
-            marketSelectionMethod = "most_recent";
+            marketSelectionMethod = "most_recent_active";
           }
         }
       }
 
+      if (!market) {
+        await this.sendErrorEmail(user, "No suitable market found.");
+        return;
+      }
+
+      console.log(
+        `📈 Market selected: ${market.title} (method: ${marketSelectionMethod})`
+      );
+
+      // Insufficient points check (for BUY)
       if (command.action === "BUY" && user.points < command.amount) {
-        console.log(
-          `❌ User ${user.email} has insufficient points for BUY ${command.amount}`
-        );
         await this.sendErrorEmail(
           user,
-          `Insufficient points. You have ${user.points} points but tried to spend ${command.amount}.`
+          `Insufficient points. You have ${user.points} but tried to spend ${command.amount}.`
         );
         return;
       }
 
-      // Continue with transaction processing...
+      // Prepare LMSR calculation
       let transactionResult;
       if (command.action === "BUY") {
         transactionResult = LMSRService.calculateSharesForBudget(
@@ -537,6 +562,7 @@ Try again! Just reply with a simple command like "BUY 50"
           user: user._id,
           market: market._id,
         });
+
         if (!position || position.sharesYes < command.amount) {
           await this.sendErrorEmail(
             user,
@@ -578,11 +604,13 @@ Try again! Just reply with a simple command like "BUY 50"
 
       await transaction.save();
 
+      // Update user
       user.points += pointsChange;
       user.stats.totalPredictions += 1;
       user.lastActive = new Date();
       await user.save();
 
+      // Update market
       if (command.action === "BUY") {
         market.lmsr.sharesYes += transactionResult.shares || command.amount;
         market.currentProbability =
@@ -603,10 +631,12 @@ Try again! Just reply with a simple command like "BUY 50"
       );
       await market.save();
 
+      // Update position
       let position = await Position.findOne({
         user: user._id,
         market: market._id,
       });
+
       if (!position) {
         position = new Position({ user: user._id, market: market._id });
       }
@@ -618,8 +648,10 @@ Try again! Just reply with a simple command like "BUY 50"
         position.sharesYes -= command.amount;
         position.realizedPnL += pointsChange;
       }
+
       await position.save();
 
+      // Send confirmation
       await emailService.sendTransactionConfirmation(
         user,
         transaction,
@@ -628,13 +660,13 @@ Try again! Just reply with a simple command like "BUY 50"
       );
 
       console.log(
-        `✅ Processed ${command.action} ${command.amount} for ${user.email} on market: ${market.title} (selected by: ${marketSelectionMethod})`
+        `✅ Processed ${command.action} ${command.amount} for ${user.email} on market "${market.title}" (${marketSelectionMethod})`
       );
     } catch (error) {
-      console.error("Error processing command:", error);
+      console.error("❌ Error in processCommand:", error);
       await this.sendErrorEmail(
         user,
-        "An error occurred processing your trade. Please try again."
+        "An error occurred while processing your trade. Please try again."
       );
     }
   }
