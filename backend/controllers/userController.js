@@ -8,7 +8,7 @@ exports.getAllUsers = async (req, res) => {
     const {
       page = 1,
       limit = 10,
-      sortBy = "name",
+      sortBy = "email",
       sortOrder = "asc",
     } = req.query;
     const sortOptions = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
@@ -57,14 +57,13 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, points, isActive, preferences } = req.body;
+    const { points, isActive, preferences } = req.body;
     const user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (name) user.name = name;
     if (points !== undefined) user.points = points;
     if (isActive !== undefined) user.isActive = isActive;
     if (preferences) {
@@ -78,7 +77,6 @@ exports.updateUser = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
-        name: user.name,
         points: user.points,
         isActive: user.isActive,
         preferences: user.preferences,

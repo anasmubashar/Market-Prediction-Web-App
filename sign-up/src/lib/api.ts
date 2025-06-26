@@ -4,13 +4,13 @@ const API_BASE_URL =
 // Auth API
 
 export const authAPI = {
-  async register(email: string, name: string) {
+  async register(email: string) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ email }),
     });
 
     if (!response.ok) {

@@ -233,7 +233,7 @@ class ImapService {
         from: process.env.EMAIL_FROM,
         to: user.email,
         subject: "Unsubscribed from Prediction Market",
-        text: `Hello ${user.name},\n\nYou have been successfully unsubscribed from prediction market emails.\n\nThank you for participating in our research study.`,
+        text: `\nYou have been successfully unsubscribed from prediction market emails.\n\nThank you for participating in our research study.`,
       };
 
       await emailService.transporter.sendMail(mailOptions);

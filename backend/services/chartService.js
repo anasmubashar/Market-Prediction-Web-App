@@ -1,4 +1,10 @@
 const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
+const { registerFont } = require("canvas");
+const path = require("path");
+
+registerFont(path.join(__dirname, "../assets/fonts/DejaVuSans.ttf"), {
+  family: "DejaVu Sans",
+});
 
 class ChartService {
   static width = 600;
@@ -54,7 +60,7 @@ class ChartService {
           title: {
             display: true,
             text: title,
-            font: { size: 18 },
+            font: { size: 18, family: "'DejaVu Sans', sans-serif" },
           },
         },
       },
@@ -95,7 +101,7 @@ class ChartService {
           title: {
             display: true,
             text: title,
-            font: { size: 18 },
+            font: { size: 18, family: "'DejaVu Sans', sans-serif" },
           },
         },
       },

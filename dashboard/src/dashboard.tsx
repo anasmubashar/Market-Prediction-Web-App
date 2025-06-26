@@ -42,7 +42,7 @@ import { ChartTooltip } from "@/components/ui/chart";
 import {
   Users,
   Download,
-  Settings,
+  // Settings,
   Mail,
   RefreshCw,
   Edit,
@@ -80,7 +80,7 @@ import {
 } from "./lib/api";
 
 type SortField =
-  | "name"
+  | "email"
   | "points"
   | "accuracy"
   | "predictions"
@@ -88,7 +88,7 @@ type SortField =
   | "lastActive";
 type SortDirection = "asc" | "desc";
 type TransactionSortField =
-  | "userName"
+  | "email"
   | "action"
   | "market"
   | "points"
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
   const [usersPerPage] = useState(10);
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionsPerPage] = useState(10);
-  const [userSortField, setUserSortField] = useState<SortField>("name");
+  const [userSortField, setUserSortField] = useState<SortField>("email");
   const [userSortDirection, setUserSortDirection] =
     useState<SortDirection>("asc");
   const [transactionSortField, setTransactionSortField] =
@@ -133,6 +133,16 @@ export default function AdminDashboard() {
     useState<SortDirection>("desc");
   const [selectedMarketId, setSelectedMarketId] = useState<string>("");
 
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isCustomEmailDialogOpen, setIsCustomEmailDialogOpen] = useState(false);
+
+  const [customSubject, setCustomSubject] = useState("");
+  const [customHtml, setCustomHtml] = useState("");
+
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [editedUser, setEditedUser] = useState<User | null>(null);
+  const [editedPoints, setEditedPoints] = useState<number>(0);
+
   // New market form
   const [newMarket, setNewMarket] = useState({
     title: "",
@@ -140,6 +150,11 @@ export default function AdminDashboard() {
     deadline: "",
     tags: "",
   });
+
+  const [isEditMarketDialogOpen, setIsEditMarketDialogOpen] = useState(false);
+  const [editedMarket, setEditedMarket] = useState<Partial<Market> | null>(
+    null
+  );
 
   // Load initial data
   useEffect(() => {
@@ -412,6 +427,18 @@ export default function AdminDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Button
+            onClick={sendMarketCycle}
+            disabled={isScheduling}
+            className="h-20 flex-col"
+          >
+            {isScheduling ? (
+              <RefreshCw className="w-6 h-6 mb-2 animate-spin" />
+            ) : (
+              <Send className="w-6 h-6 mb-2" />
+            )}
+            {isScheduling ? "Sending..." : "Send Market Cycle"}
+          </Button>
           <Dialog
             open={isScheduleDialogOpen}
             onOpenChange={setIsScheduleDialogOpen}
@@ -597,18 +624,6 @@ export default function AdminDashboard() {
           </Dialog>
 
           <Button
-            onClick={sendMarketCycle}
-            disabled={isScheduling}
-            className="h-20 flex-col"
-          >
-            {isScheduling ? (
-              <RefreshCw className="w-6 h-6 mb-2 animate-spin" />
-            ) : (
-              <Send className="w-6 h-6 mb-2" />
-            )}
-            {isScheduling ? "Sending..." : "Send Market Cycle"}
-          </Button>
-          <Button
             variant="outline"
             onClick={exportUserData}
             className="h-20 flex-col"
@@ -695,6 +710,174 @@ export default function AdminDashboard() {
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline">Cancel</Button>
                   <Button onClick={createMarket}>Create Market</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={isEditMarketDialogOpen}
+            onOpenChange={setIsEditMarketDialogOpen}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Market</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  value={editedMarket?.title || ""}
+                  onChange={(e) =>
+                    setEditedMarket((prev) => ({
+                      ...prev!,
+                      title: e.target.value,
+                    }))
+                  }
+                  placeholder="Market title"
+                />
+                <Textarea
+                  value={editedMarket?.description || ""}
+                  onChange={(e) =>
+                    setEditedMarket((prev) => ({
+                      ...prev!,
+                      description: e.target.value,
+                    }))
+                  }
+                  placeholder="Description"
+                />
+                <Input
+                  type="datetime-local"
+                  value={
+                    editedMarket?.deadline
+                      ? new Date(editedMarket.deadline)
+                          .toISOString()
+                          .slice(0, 16)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    setEditedMarket((prev) => ({
+                      ...prev!,
+                      deadline: e.target.value,
+                    }))
+                  }
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditMarketDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (editedMarket?._id) {
+                        await marketsAPI.updateMarket(
+                          editedMarket._id,
+                          editedMarket
+                        );
+                        setSuccess("Market updated!");
+                        setIsEditMarketDialogOpen(false);
+                        loadDashboardData(); // Refresh data
+                      }
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={isCustomEmailDialogOpen}
+            onOpenChange={setIsCustomEmailDialogOpen}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Send Custom Email</DialogTitle>
+                <DialogDescription>
+                  Send a direct message to{" "}
+                  <strong>{selectedUser?.email}</strong>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Subject"
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                />
+                <Textarea
+                  placeholder="Message (HTML)"
+                  value={customHtml}
+                  onChange={(e) => setCustomHtml(e.target.value)}
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCustomEmailDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (selectedUser) {
+                        await emailsAPI.sendCustomEmail({
+                          userIds: [selectedUser._id],
+                          subject: customSubject,
+                          htmlContent: customHtml,
+                          textContent: customHtml.replace(/<[^>]+>/g, ""), // Plain text fallback
+                        });
+                        setSuccess("Email sent!");
+                        setIsCustomEmailDialogOpen(false);
+                      }
+                    }}
+                  >
+                    Send Email
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={isEditUserDialogOpen}
+            onOpenChange={setIsEditUserDialogOpen}
+          >
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Edit User Points</DialogTitle>
+                <DialogDescription>
+                  Update point balance for <strong>{editedUser?.email}</strong>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Label htmlFor="user-points">Points</Label>
+                <Input
+                  id="user-points"
+                  type="number"
+                  value={editedPoints}
+                  onChange={(e) => setEditedPoints(Number(e.target.value))}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditUserDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!editedUser) return;
+                      console.log("Updating user with ID:", editedUser._id); // DEBUG
+                      await usersAPI.updateUser(editedUser._id, {
+                        points: editedPoints,
+                      });
+                      setSuccess("User points updated");
+                      setIsEditUserDialogOpen(false);
+                      loadDashboardData();
+                    }}
+                  >
+                    Save
+                  </Button>
                 </div>
               </div>
             </DialogContent>
@@ -789,14 +972,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditedMarket(selectedMarket);
+                          setIsEditMarketDialogOpen(true);
+                        }}
+                      >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
-                      </Button>
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -900,10 +1087,10 @@ export default function AdminDashboard() {
                   <TableHead>
                     <Button
                       variant="ghost"
-                      onClick={() => handleTransactionSort("userName")}
+                      onClick={() => handleTransactionSort("email")}
                       className="h-auto p-0 font-semibold"
                     >
-                      Participant {getTransactionSortIcon("userName")}
+                      Participant {getTransactionSortIcon("email")}
                     </Button>
                   </TableHead>
                   <TableHead>
@@ -947,7 +1134,7 @@ export default function AdminDashboard() {
               <TableBody>
                 {transactions.map((tx) => (
                   <TableRow key={tx._id}>
-                    <TableCell>{tx.user.name}</TableCell>
+                    <TableCell>{tx.user.email}</TableCell>
                     <TableCell>
                       <Badge
                         variant={tx.type === "BUY" ? "default" : "secondary"}
@@ -1001,10 +1188,10 @@ export default function AdminDashboard() {
                   <TableHead>
                     <Button
                       variant="ghost"
-                      onClick={() => handleUserSort("name")}
+                      onClick={() => handleUserSort("email")}
                       className="h-auto p-0 font-semibold"
                     >
-                      Participant {getSortIcon("name")}
+                      Participant {getSortIcon("email")}
                     </Button>
                   </TableHead>
                   <TableHead>
@@ -1048,16 +1235,16 @@ export default function AdminDashboard() {
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user._id}>
                     <TableCell>
                       <input type="checkbox" className="rounded" />
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="font-medium">{user.email}</div>
+                        {/* <div className="text-sm text-gray-600">
                           {user.email}
-                        </div>
+                        </div> */}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1070,10 +1257,25 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditedUser(user);
+                            setEditedPoints(user.points); // prefill with current value
+                            setIsEditUserDialogOpen(true);
+                          }}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setIsCustomEmailDialogOpen(true);
+                          }}
+                        >
                           <Mail className="w-4 h-4" />
                         </Button>
                       </div>

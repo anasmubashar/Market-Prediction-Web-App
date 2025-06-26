@@ -18,9 +18,8 @@ export interface ScheduleFormData {
 }
 
 export interface User {
-  id: string;
+  _id: string;
   email: string;
-  name: string;
   points: number;
   isActive: boolean;
   lastActive: string;
@@ -63,7 +62,6 @@ export interface Market {
 export interface Transaction {
   _id: string;
   user: {
-    name: string;
     email: string;
   };
   market: {
@@ -119,7 +117,7 @@ export interface DashboardStats {
 
 // Users API
 export const usersAPI = {
-  async getUsers(page = 1, limit = 10, sortBy = "name", sortOrder = "asc") {
+  async getUsers(page = 1, limit = 10, sortBy = "email", sortOrder = "asc") {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -129,6 +127,23 @@ export const usersAPI = {
 
     const response = await fetch(`${API_BASE_URL}/users?${params}`);
     if (!response.ok) throw new Error("Failed to fetch users");
+    return response.json();
+  },
+
+  async updateUser(id: string, data: { points?: number; isActive?: boolean }) {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to update user");
+    }
+
     return response.json();
   },
 

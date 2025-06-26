@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
@@ -9,11 +9,11 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    // name: {
+    //   type: String,
+    //   required: true,
+    //   trim: true,
+    // },
     points: {
       type: Number,
       default: 1000,
@@ -53,15 +53,17 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
 // Update accuracy when stats change
 userSchema.pre("save", function (next) {
   if (this.stats.totalPredictions > 0) {
-    this.stats.accuracy = Math.round((this.stats.correctPredictions / this.stats.totalPredictions) * 100)
+    this.stats.accuracy = Math.round(
+      (this.stats.correctPredictions / this.stats.totalPredictions) * 100
+    );
   }
-  next()
-})
+  next();
+});
 
-module.exports = mongoose.model("User", userSchema)
+module.exports = mongoose.model("User", userSchema);

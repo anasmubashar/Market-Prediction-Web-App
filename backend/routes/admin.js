@@ -1,27 +1,27 @@
-const express = require("express")
-const { body } = require("express-validator")
-const adminController = require("../controllers/adminController")
+const express = require("express");
+const { body } = require("express-validator");
+const adminController = require("../controllers/adminController");
 
-const router = express.Router()
+const router = express.Router();
 
 // Get dashboard statistics
-router.get("/dashboard-stats", adminController.getDashboardStats)
+router.get("/dashboard-stats", adminController.getDashboardStats);
 
 // Export users as CSV
-router.get("/export/users", adminController.exportUsers)
+router.get("/export/users", adminController.exportUsers);
 
 // Export transactions as CSV
-router.get("/export/transactions", adminController.exportTransactions)
+router.get("/export/transactions", adminController.exportTransactions);
 
 // Create admin user (for initial setup)
 router.post(
   "/create-admin",
   [
     body("email").isEmail().normalizeEmail(),
-    body("name").trim().isLength({ min: 2, max: 50 }),
+    // body("name").trim().isLength({ min: 2, max: 50 }),
     body("password").isLength({ min: 6 }),
   ],
-  adminController.createAdmin,
-)
+  adminController.createAdmin
+);
 
-module.exports = router
+module.exports = router;

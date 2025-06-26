@@ -113,7 +113,7 @@ exports.getEmailCycle = async (req, res) => {
   try {
     const emailCycle = await EmailCycle.findById(req.params.id)
       .populate("markets", "title")
-      .populate("recipients.user", "name email");
+      .populate("recipients.user", "email");
 
     if (!emailCycle) {
       return res.status(404).json({ message: "Email cycle not found" });
@@ -161,10 +161,10 @@ exports.sendCustomEmail = async (req, res) => {
           to: user.email,
           subject,
           html: htmlContent
-            .replace("{{USER_NAME}}", user.name)
+            // .replace("{{USER_NAME}}", user.name)
             .replace("{{USER_POINTS}}", user.points),
           text: textContent
-            .replace("{{USER_NAME}}", user.name)
+            // .replace("{{USER_NAME}}", user.name)
             .replace("{{USER_POINTS}}", user.points),
         };
 

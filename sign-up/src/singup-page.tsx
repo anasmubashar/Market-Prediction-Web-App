@@ -18,7 +18,7 @@ import { authAPI } from "./lib/api";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  // const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -29,11 +29,11 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const result = await authAPI.register(email, name);
+      const result = await authAPI.register(email);
       console.log("Registration successful:", result);
       setIsSubmitted(true);
       setEmail("");
-      setName("");
+      // setName("");
     } catch (err) {
       console.error("Registration error:", err);
       setError(
@@ -67,25 +67,6 @@ export default function SignupPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Full Name
-                </label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="h-12"
-                  disabled={isLoading}
-                />
-              </div>
-
               <div>
                 <label
                   htmlFor="email"
@@ -130,7 +111,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                disabled={isLoading || !email || !name}
+                disabled={isLoading || !email}
               >
                 {isLoading ? (
                   <div className="flex items-center">

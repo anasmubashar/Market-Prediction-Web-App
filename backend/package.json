@@ -17,6 +17,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@fontsource/dejavu-sans": "^5.2.5",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.5.0",
     "chartjs-node-canvas": "^5.0.0",

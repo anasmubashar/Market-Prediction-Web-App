@@ -82,7 +82,6 @@ exports.exportUsers = async (req, res) => {
     // Create CSV content
     const csvHeader = [
       "Email",
-      "Name",
       "Points",
       "Accuracy",
       "Total Predictions",
@@ -93,7 +92,6 @@ exports.exportUsers = async (req, res) => {
 
     const csvRows = users.map((user) => [
       user.email,
-      user.name,
       user.points,
       `${user.stats.accuracy}%`,
       user.stats.totalPredictions,
@@ -119,7 +117,7 @@ exports.exportUsers = async (req, res) => {
 exports.exportTransactions = async (req, res) => {
   try {
     const transactions = await Transaction.find()
-      .populate("user", "name email")
+      .populate("user", "email")
       .populate("market", "title")
       .sort({ createdAt: -1 });
 
@@ -137,7 +135,6 @@ exports.exportTransactions = async (req, res) => {
     ];
 
     const csvRows = transactions.map((tx) => [
-      tx.user.name,
       tx.user.email,
       tx.market.title,
       tx.type,
@@ -190,7 +187,6 @@ exports.createAdmin = async (req, res) => {
       admin: {
         id: admin._id,
         email: admin.email,
-        name: admin.name,
         role: admin.role,
       },
     });

@@ -26,11 +26,11 @@ class EmailService {
         subject: "Welcome to TUSQ",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Welcome to TUSQ, ${user.name}!</h2>
+            <h2>Welcome to TUSQ!</h2>
             <p>Thank you for joining.</p>
             
             <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3>🎉 Your Starting Balance: 1000 Points</h3>
+              <h3>🎉 Starting Balance: 1000 Points</h3>
               <p>You've been credited with 1000 points to start participating in prediction markets.</p>
             </div>
 
@@ -52,9 +52,9 @@ class EmailService {
           </div>
         `,
         text: `
-          Welcome to Prediction Market, ${user.name}!
+          Welcome to Prediction Market!
           
-          Your starting balance: 1000 points
+          starting balance: 1000 points
           
           How to participate:
           - Reply to emails with BUY [amount] or SELL [amount]
@@ -146,10 +146,10 @@ class EmailService {
       to: user.email,
       subject,
       html: htmlContent
-        .replace("{{USER_NAME}}", user.name)
+        // .replace("{{USER_NAME}}", user.name)
         .replace("{{USER_POINTS}}", user.points),
       text: textContent
-        .replace("{{USER_NAME}}", user.name)
+        // .replace("{{USER_NAME}}", user.name)
         .replace("{{USER_POINTS}}", user.points),
       attachments,
       headers: {
@@ -230,7 +230,7 @@ Reply with: BUY [amount] or SELL [amount]
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Hello {{USER_NAME}}!</h2>
+        <h2>Hello! </h2>
         <p>Here are the current prediction markets and their probabilities:</p>
         
         <div style="background-color: #f0f9ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
@@ -239,27 +239,35 @@ Reply with: BUY [amount] or SELL [amount]
 
         ${(await Promise.all(marketListHtml)).join("")}
 
-        <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0;">
-          <h3>How to Trade:</h3>
-          <ul style="margin: 8px 0;">
-            <li>Simply reply to this email with your command</li>
-            <li><strong>BUY 50</strong> - Buy 50 shares</li>
-            <li><strong>SELL 25</strong> - Sell 25 shares</li>
-          </ul>
-          <p style="color: #6b7280; font-size: 14px; margin: 8px 0 0 0;">
-            Commands are case-insensitive. You can also include the market name for clarity.
-          </p>
-        </div>
+        <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0; font-family: sans-serif;">
+  <h3 style="margin-top: 0;"> How to Trade</h3>
+  <p>To place a trade, simply reply to this email with one of the following commands:</p>
 
-        <hr style="margin: 30px 0;">
-        <p style="color: #666; font-size: 12px;">
-          Academic Psychology Research Study | Reply "UNSUBSCRIBE" to opt out
-        </p>
-      </div>
+  <ul style="list-style-type: none; padding-left: 0;">
+    <li><strong>BUY 50</strong> – Buys 50 shares</li>
+    <li><strong>SELL 25</strong> – Sells 25 shares</li>
+  </ul>
+
+  <p style="color: #065f46; margin: 12px 0 4px 0;">✅ You can type in any case — uppercase or lowercase (e.g., <em>buy 50</em>, <em>SELL 25</em>)</p>
+  <p style="color: #065f46; margin: 0 0 12px 0;">✅ Optional: Include the <strong>market name</strong> to specify which market you're trading in. This helps avoid confusion, especially if multiple markets are listed.</p>
+
+  <h4 style="margin: 16px 0 8px 0;">📌 Example With Market Name</h4>
+  <p>If you see a market like:</p>
+  <div style="background-color: #e0f2fe; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+    <strong>Will Trump win elections</strong><br>
+    <span style="color: #1e40af;">Probability: 59%</span>
+  </div>
+  <p>You can reply with:</p>
+  <div style="background-color: #fef3c7; padding: 12px; border-radius: 6px;">
+    <code style="font-size: 15px;">BUY 50 trump elections</code>
+  </div>
+  <p style="margin-top: 8px;">This tells the system exactly which market you’re referring to — helpful when there are multiple markets in one email.</p>
+</div>
+
     `;
 
     const textContent = `
-Hello {{USER_NAME}}!
+Hello!
 
 Your Current Balance: {{USER_POINTS}} points
 
