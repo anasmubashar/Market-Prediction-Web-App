@@ -6,7 +6,6 @@ const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
-require("./scheduler");
 
 const app = express();
 
