@@ -261,6 +261,10 @@ class ImapService {
       .replace(/\bon\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, "")
       .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "") // e.g. 25 Jun 2025
       .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "") // e.g. at 21:33
+      // **NEW**: remove any quoted “> ...” lines
+      .replace(/^>.*$/gm, " ")
+      // **NEW**: drop everything after "wrote:" (your signature/instruction block)
+      .replace(/wrote:[\s\S]*$/i, " ")
       .trim();
 
     console.log(`🔍 Cleaned content: "${cleanContent}"`);
