@@ -352,7 +352,9 @@ export default function AdminDashboard() {
     console.log(scheduleForm);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/emails/schedule`,
+        `${
+          import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+        }/emails/schedule`,
         {
           method: "POST",
           headers: {

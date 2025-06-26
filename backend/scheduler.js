@@ -1,11 +1,12 @@
-const cron = require("node-cron");
+// services/emailCycleRunner.js
+
 const EmailCycle = require("./models/EmailCycle");
 const User = require("./models/User");
 const Market = require("./models/Market");
 const emailService = require("./services/emailService");
 const { getNextRunDate } = require("./utils/scheduleUtils");
 
-cron.schedule("* * * * *", async () => {
+const runScheduledEmailCycles = async () => {
   const now = new Date();
 
   const dueCycles = await EmailCycle.find({
@@ -27,7 +28,6 @@ cron.schedule("* * * * *", async () => {
         users
       );
 
-      // Update nextRun for future execution
       cycle.recurrence.nextRun = getNextRunDate(cycle.recurrence);
       cycle.stats = emailCycle.stats;
       cycle.recipients = emailCycle.recipients;
@@ -40,4 +40,6 @@ cron.schedule("* * * * *", async () => {
       await cycle.save();
     }
   }
-});
+};
+
+module.exports = runScheduledEmailCycles;
