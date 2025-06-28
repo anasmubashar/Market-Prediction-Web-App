@@ -29,7 +29,7 @@ router.post(
   "/schedule",
   [
     body("title").isString().isLength({ min: 5 }),
-    body("markets").isArray({ min: 1 }),
+    // body("markets").isArray({ min: 1 }),
     body("recurrence.frequency").isIn(["daily", "weekly", "monthly"]),
     body("recurrence.timeOfDay").matches(/^([01]\d|2[0-3]):([0-5]\d)$/),
     body("recurrence.dayOfWeek").optional().isInt({ min: 0, max: 6 }),

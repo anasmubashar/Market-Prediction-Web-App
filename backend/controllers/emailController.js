@@ -4,39 +4,188 @@ const Market = require("../models/Market");
 const emailService = require("../services/emailService");
 const { validationResult } = require("express-validator");
 const { getNextRunDate } = require("../utils/scheduleUtils");
-
-exports.scheduleEmailCycle = async (req, res) => {
+const { getRecurrenceDescription } = require("../utils/scheduleUtils");
+// Execute scheduled email cycles (called by cron jobs)
+exports.executeScheduledCycles = async (req, res) => {
   try {
-    const {
-      recurrence,
-      createdBy, // optionally passed or get from req.user
-    } = req.body;
+    const now = new Date();
 
-    // Fetch all active markets
-    const activeMarkets = await Market.find({ status: "active" }).select("_id");
+    // Find all scheduled cycles that are due to run
+    const dueCycles = await EmailCycle.find({
+      status: "scheduled",
+      "recurrence.nextRun": { $lte: now },
+    }).populate("markets");
 
-    if (activeMarkets.length === 0) {
-      return res.status(400).json({ message: "No active markets found" });
+    console.log(`📅 Found ${dueCycles.length} email cycles due for execution`);
+
+    let executed = 0;
+    let failed = 0;
+
+    for (const cycle of dueCycles) {
+      try {
+        await this.sendMarketCycle(cycle);
+        executed++;
+      } catch (error) {
+        console.error(`❌ Failed to execute cycle ${cycle._id}:`, error);
+        failed++;
+
+        // Mark cycle as failed
+        cycle.status = "failed";
+        cycle.lastError = error.message;
+        await cycle.save();
+      }
     }
 
-    const nextRun = getNextRunDate(recurrence);
+    const result = {
+      message: `Executed ${executed} email cycles, ${failed} failed`,
+      executed,
+      failed,
+      totalDue: dueCycles.length,
+    };
 
+    if (res) {
+      res.json(result);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("❌ Error executing scheduled cycles:", error);
+    if (res) {
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+    throw error;
+  }
+};
+
+// Create automatic daily email schedule
+exports.scheduleEmailCycle = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const {
+      title,
+      recurrence,
+      // createdBy, // optionally passed or get from req.user
+    } = req.body;
+
+    // Validate recurrence object
+    const { frequency, timeOfDay, dayOfWeek, dayOfMonth } = recurrence;
+
+    // Get all active markets
+    const validMarkets = await Market.find({ status: "active" }).select(
+      "_id title"
+    );
+
+    if (validMarkets.length === 0) {
+      return res.status(400).json({
+        message: "No active markets found to schedule emails for",
+      });
+    }
+
+    // Parse time
+    const [hour, minute] = timeOfDay.split(":").map(Number);
+
+    // Build recurrence config based on frequency
+    const recurrenceConfig = {
+      type: frequency,
+      hour,
+      minute,
+      timezone: recurrence.timezone || "UTC",
+      enabled: true,
+      executionCount: 0,
+    };
+
+    // Add frequency-specific fields
+    switch (frequency) {
+      case "daily":
+        // No additional fields needed for daily
+        break;
+
+      case "weekly":
+        if (dayOfWeek === undefined) {
+          return res.status(400).json({
+            message: "dayOfWeek is required for weekly frequency",
+          });
+        }
+        recurrenceConfig.dayOfWeek = dayOfWeek;
+        break;
+
+      case "monthly":
+        if (dayOfMonth === undefined) {
+          return res.status(400).json({
+            message: "dayOfMonth is required for monthly frequency",
+          });
+        }
+        recurrenceConfig.dayOfMonth = dayOfMonth;
+        break;
+
+      default:
+        return res.status(400).json({
+          message: "Invalid frequency. Must be daily, weekly, or monthly",
+        });
+    }
+
+    // Calculate next run date
+    const nextRun = getNextRunDate(recurrenceConfig);
+
+    // // Validate markets exist and are active
+    // const validMarkets = await Market.find({
+    //   _id: { $in: markets },
+    //   status: "active",
+    // }).select("_id title");
+
+    // if (validMarkets.length === 0) {
+    //   return res.status(400).json({
+    //     message: "No valid active markets found",
+    //   });
+    // }
+
+    // if (validMarkets.length !== markets.length) {
+    //   console.warn(
+    //     `⚠️ Some markets were invalid or inactive. Using ${validMarkets.length} of ${markets.length} markets.`
+    //   );
+    // }
+
+    // Create the scheduled email cycle
     const newCycle = await EmailCycle.create({
-      markets: activeMarkets.map((m) => m._id), // use all active market IDs
+      title:
+        title ||
+        `${
+          frequency.charAt(0).toUpperCase() + frequency.slice(1)
+        } Market Update - ${timeOfDay}`,
+      markets: validMarkets.map((m) => m._id),
       recurrence: {
-        ...recurrence,
+        ...recurrenceConfig,
         nextRun,
       },
       status: "scheduled",
-      createdBy,
+      // createdBy: createdBy || req.user?.id || "system",
     });
 
-    res
-      .status(201)
-      .json({ message: "Scheduled email cycle created", cycle: newCycle });
+    // Generate human-readable description
+    const description = getRecurrenceDescription(recurrenceConfig);
+
+    res.status(201).json({
+      message: "Email cycle scheduled successfully",
+      cycle: {
+        id: newCycle._id,
+        title: newCycle.title,
+        frequency,
+        description,
+        nextRun: nextRun.toISOString(),
+        marketsCount: validMarkets.length,
+        markets: validMarkets.map((m) => ({ id: m._id, title: m.title })),
+      },
+    });
   } catch (error) {
     console.error("Error scheduling email cycle:", error);
-    res.status(500).json({ error: "Failed to schedule email cycle" });
+    res.status(500).json({
+      error: "Failed to schedule email cycle",
+      message: error.message,
+    });
   }
 };
 
