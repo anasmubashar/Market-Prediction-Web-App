@@ -25,6 +25,16 @@ exports.executeScheduledCycles = async (req, res) => {
       try {
         await this.sendMarketCycle(cycle);
         executed++;
+
+        // ✅ Update nextRun or complete the cycle if it's a one-time schedule
+        if (cycle.recurrence.type !== "once") {
+          const { getNextRunDate } = require("../utils/scheduleUtils"); // adjust path as needed
+          cycle.recurrence.nextRun = getNextRunDate(cycle.recurrence);
+          await cycle.save();
+        } else {
+          cycle.status = "completed";
+          await cycle.save();
+        }
       } catch (error) {
         console.error(`❌ Failed to execute cycle ${cycle._id}:`, error);
         failed++;
