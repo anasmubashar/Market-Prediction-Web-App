@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
 const probabilityHistorySchema = new mongoose.Schema(
   {
@@ -13,8 +13,8 @@ const probabilityHistorySchema = new mongoose.Schema(
       max: 100,
     },
   },
-  { _id: false },
-)
+  { _id: false }
+);
 
 const marketSchema = new mongoose.Schema(
   {
@@ -50,7 +50,20 @@ const marketSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // LMSR Market Maker fields
+    // Fixed-odds pricing fields
+    fixedYesPrice: {
+      type: Number,
+      default: 0.5, // 50% probability as decimal
+      min: 0.01,
+      max: 0.99,
+    },
+    fixedNoPrice: {
+      type: Number,
+      default: 0.5, // 50% probability as decimal
+      min: 0.01,
+      max: 0.99,
+    },
+    // Keep LMSR fields for backward compatibility during migration
     lmsr: {
       // Liquidity parameter (higher = more stable prices)
       beta: {
@@ -84,8 +97,8 @@ const marketSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
 // Add probability to history when it changes
 marketSchema.pre("save", function (next) {
@@ -93,13 +106,21 @@ marketSchema.pre("save", function (next) {
     this.probabilityHistory.push({
       date: new Date(),
       probability: this.currentProbability,
-    })
+    });
   }
-  next()
-})
+  next();
+});
+
+// Update currentProbability based on fixedYesPrice
+marketSchema.pre("save", function (next) {
+  if (this.isModified("fixedYesPrice")) {
+    this.currentProbability = Math.round(this.fixedYesPrice * 100);
+  }
+  next();
+});
 
 // Index for efficient queries
-marketSchema.index({ status: 1, deadline: 1 })
-marketSchema.index({ createdAt: -1 })
+marketSchema.index({ status: 1, deadline: 1 });
+marketSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model("Market", marketSchema)
+module.exports = mongoose.model("Market", marketSchema);

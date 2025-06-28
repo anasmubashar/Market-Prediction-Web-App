@@ -37,9 +37,9 @@ class EmailService {
             <h3>How to Participate:</h3>
             <ul>
               <li>Reply to market emails with simple commands</li>
-              <li>Use "BUY [amount]" to buy shares</li>
-              <li>Use "SELL [amount]" to sell shares</li>
-              <li>Example: "BUY 50" or "SELL 25"</li>
+              <li>Use "BUY [amount]" to spend points on shares</li>
+              <li>Use "SELL [shares]" to sell your shares</li>
+              <li>Example: "BUY 50" or "SELL 25 YES"</li>
             </ul>
 
             <p>You'll receive your first prediction market email soon!</p>
@@ -54,11 +54,12 @@ class EmailService {
         text: `
           Welcome to Prediction Market!
           
-          starting balance: 1000 points
+          Starting balance: 1000 points
           
           How to participate:
-          - Reply to emails with BUY [amount] or SELL [amount]
-          - Example: BUY 50 or SELL 25
+          - Reply to emails with BUY [amount] to spend points on shares
+          - Reply with SELL [shares] to sell your shares
+          - Example: BUY 50 or SELL 25 YES
           
           You'll receive your first market email soon!
         `,
@@ -165,6 +166,7 @@ class EmailService {
   async generateMarketEmailContent(markets) {
     const subject = `Prediction Markets Update - ${markets.length} Active Markets`;
     const attachments = [];
+
     // Generate charts for each market
     const marketListHtml = await Promise.all(
       markets.map(async (market) => {
@@ -182,106 +184,99 @@ class EmailService {
         });
 
         return `
-        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
-  <h3 style="margin: 0 0 8px 0; color: #1f2937;">${market.title}</h3>
-  
-  <div style="display: flex; align-items: center; width: 100%;">
-    <div style="min-width: 120px; margin-right: 16px; margin-bottom: 8px;">
-      <span style="font-size: 24px; font-weight: bold; color: #4f46e5;">
-        ${market.currentProbability}%
-      </span>
-      <span style="color: #6b7280; margin-left: 4px;">probability</span>
-    </div>
-    
-    <div style="text-align: right; color: #6b7280; font-size: 14px; margin-left: auto;">
-      <div>Volume: ${market.totalVolume}</div>
-      <div>Deadline: ${new Date(market.deadline).toLocaleDateString()}</div>
-    </div>
-  </div>
+      <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+<h3 style="margin: 0 0 8px 0; color: #1f2937;">${market.title}</h3>
 
-  <img src="cid:${cid}" style="max-width: 100%; margin-top: 10px; border-radius: 6px;" />
+<div style="display: flex; align-items: center; width: 100%;">
+  <div style="min-width: 120px; margin-right: 16px; margin-bottom: 8px;">
+    <span style="font-size: 24px; font-weight: bold; color: #4f46e5;">
+      ${market.currentProbability}%
+    </span>
+    <span style="color: #6b7280; margin-left: 4px;">probability</span>
+  </div>
   
-  <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
-    <p style="margin: 0; color: #6b7280; font-size: 14px;">
-      Reply with: <strong>BUY [amount]</strong> or <strong>SELL [amount]</strong>
-    </p>
+  <div style="text-align: right; color: #6b7280; font-size: 14px; margin-left: auto;">
+    <div>Volume: ${market.totalVolume}</div>
+    <div>YES Price: ${(market.fixedYesPrice * 100).toFixed(
+      1
+    )} points per share</div>
+    <div>NO Price: ${(market.fixedNoPrice * 100).toFixed(
+      1
+    )} points per share</div>
+    <div>Deadline: ${new Date(market.deadline).toLocaleDateString()}</div>
   </div>
 </div>
 
-      `;
+<img src="cid:${cid}" style="max-width: 100%; margin-top: 10px; border-radius: 6px;" />
+
+<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
+  <p style="margin: 0; color: #6b7280; font-size: 14px;">
+    Reply with: <strong>BUY [amount] YES</strong> or <strong>BUY [amount] NO</strong>
+  </p>
+</div>
+</div>
+    `;
       })
     );
 
-    const marketListText = await Promise.all(
-      markets.map(async (market) => {
-        return `
-${market.title}
-Current Probability: ${market.currentProbability}%
-Volume: ${market.totalVolume} | Deadline: ${new Date(
-          market.deadline
-        ).toLocaleDateString()}
-
-
-Reply with: BUY [amount] or SELL [amount]
----
+    const marketListText = markets.map((market) => {
+      return `
+Market: ${market.title}
+YES Price: ${(market.fixedYesPrice * 100).toFixed(1)} points per share
+NO Price: ${(market.fixedNoPrice * 100).toFixed(1)} points per share
+Deadline: ${new Date(market.deadline).toLocaleDateString()}
       `;
-      })
-    );
+    });
 
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Hello! </h2>
-        <p>Here are the current prediction markets and their probabilities:</p>
-        
-        <div style="background-color: #f0f9ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin: 0 0 8px 0;">💰 Your Current Balance: {{USER_POINTS}} points</h3>
-        </div>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2>Hello! </h2>
+      <p>Here are the current prediction markets with fixed-odds pricing:</p>
+      
+      <div style="background-color: #f0f9ff; padding: 16px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin: 0 0 8px 0;">💰 Your Current Balance: {{USER_POINTS}} points</h3>
+      </div>
 
-        ${(await Promise.all(marketListHtml)).join("")}
+      ${marketListHtml.join("")}
 
-        <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0; font-family: sans-serif;">
-  <h3 style="margin-top: 0;"> How to Trade</h3>
-  <p>To place a trade, simply reply to this email with one of the following commands:</p>
+      <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0; font-family: sans-serif;">
+<h3 style="margin-top: 0;">🎯 How Fixed-Odds Betting Works</h3>
+<p>Our prediction markets work like sports betting - you can only <strong>BUY</strong> shares:</p>
 
-  <ul style="list-style-type: none; padding-left: 0;">
-    <li><strong>BUY 50</strong> – Buys 50 shares</li>
-    <li><strong>SELL 25</strong> – Sells 25 shares</li>
-  </ul>
+<ul style="list-style-type: none; padding-left: 0;">
+  <li><strong>BUY 50 YES</strong> – Spend 50 points on YES shares</li>
+  <li><strong>BUY 50 NO</strong> – Spend 50 points on NO shares</li>
+  <li><strong>BUY 100</strong> – Spend 100 points (defaults to YES)</li>
+</ul>
 
-  <p style="color: #065f46; margin: 12px 0 4px 0;">✅ You can type in any case — uppercase or lowercase (e.g., <em>buy 50</em>, <em>SELL 25</em>)</p>
-  <p style="color: #065f46; margin: 0 0 12px 0;">✅ Optional: Include the <strong>market name</strong> to specify which market you're trading in. This helps avoid confusion, especially if multiple markets are listed.</p>
+<p style="color: #065f46; margin: 12px 0 4px 0;">✅ Each share pays out <strong>100 points</strong> if you're right</p>
+<p style="color: #065f46; margin: 0 0 12px 0;">✅ Prices are fixed when you buy (no changes)</p>
+<p style="color: #065f46; margin: 0 0 12px 0;">✅ You cannot sell shares - only buy and hold until resolution</p>
 
-  <h4 style="margin: 16px 0 8px 0;">📌 Example With Market Name</h4>
-  <p>If you see a market like:</p>
-  <div style="background-color: #e0f2fe; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-    <strong>Will Trump win elections</strong><br>
-    <span style="color: #1e40af;">Probability: 59%</span>
-  </div>
-  <p>You can reply with:</p>
-  <div style="background-color: #fef3c7; padding: 12px; border-radius: 6px;">
-    <code style="font-size: 15px;">BUY 50 trump elections</code>
-  </div>
-  <p style="margin-top: 8px;">This tells the system exactly which market you’re referring to — helpful when there are multiple markets in one email.</p>
+<h4 style="margin: 16px 0 8px 0;">💡 Example</h4>
+<p>If YES shares cost 60 points each and you spend 120 points, you get 2 shares. If the market resolves YES, you get 200 points (2 × 100). Your profit is 80 points!</p>
 </div>
-
-    `;
+  `;
 
     const textContent = `
 Hello!
 
 Your Current Balance: {{USER_POINTS}} points
 
-Current Prediction Markets:
-${(await Promise.all(marketListText)).join("\n")}
+Current Fixed-Odds Prediction Markets:
+${marketListText.join("\n")}
 
-How to Trade:
-- Reply to this email with your command
-- BUY 50 (to buy 50 shares)
-- SELL 25 (to sell 25 shares)
+How Fixed-Odds Betting Works:
+- You can only BUY shares (no selling)
+- BUY [amount] YES or BUY [amount] NO
+- Each share pays 100 points if you're right
+- Prices are fixed when you trade
+
+Example: BUY 50 YES, BUY 100 NO
 
 Academic Psychology Research Study
 Reply "UNSUBSCRIBE" to opt out
-    `;
+  `;
 
     return { subject, htmlContent, textContent, attachments };
   }
@@ -291,10 +286,10 @@ Reply "UNSUBSCRIBE" to opt out
     user,
     transaction,
     market,
-    marketSelectionMethod = "unknown"
+    marketSelectionMethod = "unknown",
+    marketSelectionDetails = ""
   ) {
     try {
-      const action = transaction.type === "BUY" ? "purchased" : "sold";
       const pointsText =
         transaction.pointsChange > 0
           ? `+${transaction.pointsChange}`
@@ -302,71 +297,101 @@ Reply "UNSUBSCRIBE" to opt out
 
       // Market selection explanation
       let selectionExplanation = "";
+      let selectionColor = "#666";
+
       switch (marketSelectionMethod) {
-        case "hint":
-          selectionExplanation =
-            "✅ Market selected based on your keyword hint";
+        case "exact_title_match":
+          selectionExplanation = "✅ Exact market title match";
+          selectionColor = "#28a745";
           break;
-        case "single_active":
+        case "partial_title_match":
+          selectionExplanation = "✅ Partial market title match";
+          selectionColor = "#28a745";
+          break;
+        case "keyword_match":
+          selectionExplanation = "✅ Keyword match found";
+          selectionColor = "#28a745";
+          break;
+        case "single_active_market":
           selectionExplanation = "ℹ️ Only one active market available";
+          selectionColor = "#17a2b8";
           break;
         case "last_email_cycle":
-          selectionExplanation =
-            "📧 Market selected from your last email update";
+          selectionExplanation = "📧 Selected from your last email update";
+          selectionColor = "#17a2b8";
           break;
-        case "most_recent":
-          selectionExplanation = "🕒 Most recently created active market used";
+        case "most_recent_fallback":
+          selectionExplanation = "⚠️ Used most recent market (no hint match)";
+          selectionColor = "#ffc107";
           break;
         default:
           selectionExplanation = "🎯 Market automatically selected";
+          selectionColor = "#666";
       }
+
+      const side = transaction.notes.includes("YES") ? "YES" : "NO";
+      const maxPayout = transaction.amount * 100; // Each share pays 100 points
+      const potentialProfit = maxPayout + transaction.pointsChange; // pointsChange is negative for purchases
 
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: user.email,
-        subject: `✅ Trade Confirmed: ${transaction.type} ${transaction.amount} shares`,
+        subject: `✅ Purchase Confirmed: ${transaction.amount} ${side} shares in ${market.title}`,
         html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>✅ Transaction Confirmed!</h2>
+          <h2>✅ Purchase Confirmed!</h2>
           
           <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3>You ${action} ${transaction.amount} shares</h3>
+            <h3>You bought ${transaction.amount} ${side} shares</h3>
             <p><strong>Market:</strong> ${market.title}</p>
-            <p><strong>Price:</strong> ${transaction.price}%</p>
-            <p><strong>Points Change:</strong> ${pointsText}</p>
+            <p><strong>Cost:</strong> ${Math.abs(
+              transaction.pointsChange
+            )} points</p>
+            <p><strong>Max Payout:</strong> ${maxPayout} points (if ${side} wins)</p>
+            <p><strong>Potential Profit:</strong> ${potentialProfit} points</p>
             <p><strong>New Balance:</strong> ${user.points} points</p>
           </div>
 
-          <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; font-size: 14px; color: #666;">
-              ${selectionExplanation}
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${selectionColor};">
+            <p style="margin: 0; font-size: 14px; color: ${selectionColor};">
+              <strong>Market Selection:</strong> ${selectionExplanation}
             </p>
+            ${
+              marketSelectionDetails
+                ? `<p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">${marketSelectionDetails}</p>`
+                : ""
+            }
           </div>
 
           <div style="margin-top: 20px;">
-            <h4>💡 Pro Tips:</h4>
+            <h4>🎯 Trading Tips for Multiple Markets:</h4>
             <ul style="font-size: 14px; color: #666;">
-              <li>Include market keywords: <strong>"BUY 50 INFLATION"</strong></li>
-              <li>Check multiple markets in your email updates</li>
-              <li>Reply quickly after receiving market emails</li>
+              <li>Include specific keywords: <strong>"BUY 50 INFLATION YES"</strong></li>
+              <li>Use distinctive words from market titles</li>
+              <li>Be as specific as possible to avoid confusion</li>
+              <li>Check market lists in your email updates</li>
             </ul>
           </div>
         </div>
       `,
         text: `
-✅ Transaction Confirmed!
+✅ Purchase Confirmed!
 
-You ${action} ${transaction.amount} shares
+You bought ${transaction.amount} ${side} shares
 Market: ${market.title}
-Price: ${transaction.price}%
-Points Change: ${pointsText}
+Cost: ${Math.abs(transaction.pointsChange)} points
+Max Payout: ${maxPayout} points (if ${side} wins)
+Potential Profit: ${potentialProfit} points
 New Balance: ${user.points} points
 
-${selectionExplanation}
+Market Selection: ${selectionExplanation}
+${marketSelectionDetails}
 
-Pro Tips:
-- Include market keywords: "BUY 50 INFLATION"
-- Check multiple markets in your email updates
+Trading Tips for Multiple Markets:
+- Include specific keywords: "BUY 50 INFLATION YES"
+- Use distinctive words from market titles
+- Be as specific as possible to avoid confusion
+- Check market lists in your email updates
       `,
       };
 

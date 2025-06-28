@@ -4,7 +4,7 @@ const User = require("../models/User");
 const Market = require("../models/Market");
 const Transaction = require("../models/Transaction");
 const emailService = require("./emailService");
-const LMSRService = require("./lmsrService");
+const FixedMarketService = require("./fixedMarketService");
 const Position = require("../models/Position");
 const EmailCycle = require("../models/EmailCycle");
 
@@ -246,140 +246,347 @@ class ImapService {
   parseCommands(content) {
     const commands = [];
 
-    console.log(`🔍 Parsing commands from content: "${content}"`);
-
-    // Clean the content more aggressively
     const cleanContent = content
-      .replace(/<[^>]*>/g, " ") // Remove HTML tags
-      .replace(/&nbsp;/g, " ") // Remove HTML entities
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, "&")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
-      .replace(/\r\n/g, "\n") // Normalize line endings
+      .replace(/\r\n/g, "\n")
       .replace(/\r/g, "\n")
-      .replace(/\s+/g, " ") // Normalize whitespace
+      .replace(/\s+/g, " ")
       .replace(/\bon\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/gi, "")
-      .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "") // e.g. 25 Jun 2025
-      .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "") // e.g. at 21:33
-      // **NEW**: remove any quoted “> ...” lines
+      .replace(/\b\d{1,2}\s+\w{3,9}\s+\d{4}\b/gi, "")
+      .replace(/\bat\s+\d{1,2}:\d{2}\b/gi, "")
       .replace(/^>.*$/gm, " ")
-      // **NEW**: drop everything after "wrote:" (your signature/instruction block)
       .replace(/wrote:[\s\S]*$/i, " ")
       .trim();
 
-    console.log(`🔍 Cleaned content: "${cleanContent}"`);
-
-    // Split by various delimiters and check each part
     const parts = cleanContent.split(/[\n\r\t,;.!?]/);
 
     for (const part of parts) {
       const trimmedPart = part.trim();
-
       if (!trimmedPart || trimmedPart.length > 100) continue;
 
-      console.log(`🔍 Checking part: "${trimmedPart}"`);
+      // Enhanced pattern to capture market hints better
+      // Matches: BUY 50 [market hint] [YES/NO]
+      const pattern = /^BUY\s+(\d+)(?:\s+([a-zA-Z\s]+?))?(?:\s+(YES|NO))?$/i;
+      const match = trimmedPart.match(pattern);
 
-      const upperPart = trimmedPart.toUpperCase();
+      if (match) {
+        const amount = Number(match[1]);
+        let marketHint = match[2] ? match[2].trim() : null;
+        let side = match[3] ? match[3].toUpperCase() : "YES"; // default YES
 
-      // More flexible regex patterns
-      const buyPatterns = [
-        /^BUY\s+(\d+)(?:\s+(.+))?$/i,
-        /^B\s+(\d+)(?:\s+(.+))?$/i,
-        /(\d+)\s*BUY/i,
-        /BUY.*?(\d+)/i,
-      ];
-
-      const sellPatterns = [
-        /^SELL\s+(\d+)(?:\s+(.+))?$/i,
-        /^S\s+(\d+)(?:\s+(.+))?$/i,
-        /(\d+)\s*SELL/i,
-        /SELL.*?(\d+)/i,
-      ];
-
-      // Try buy patterns
-      for (const pattern of buyPatterns) {
-        const match = trimmedPart.match(pattern);
-        if (match) {
-          const amount = Number.parseInt(match[1]);
-          if (amount >= 1 && amount <= 1000) {
-            console.log(`✅ Found BUY command: ${amount}`);
-            commands.push({
-              action: "BUY",
-              amount: amount,
-              marketHint: match[2] ? match[2].trim() : null,
-            });
-            break;
+        // If no explicit YES/NO, check if the last word of market hint is YES/NO
+        if (!match[3] && marketHint) {
+          const words = marketHint.split(/\s+/);
+          const lastWord = words[words.length - 1].toUpperCase();
+          if (lastWord === "YES" || lastWord === "NO") {
+            side = lastWord;
+            marketHint = words.slice(0, -1).join(" ").trim();
+            if (!marketHint) marketHint = null;
           }
         }
-      }
 
-      // Try sell patterns
-      for (const pattern of sellPatterns) {
-        const match = trimmedPart.match(pattern);
-        if (match) {
-          const amount = Number.parseInt(match[1]);
-          if (amount >= 1 && amount <= 1000) {
-            console.log(`✅ Found SELL command: ${amount}`);
-            commands.push({
-              action: "SELL",
-              amount: amount,
-              marketHint: match[2] ? match[2].trim() : null,
-            });
-            break;
-          }
-        }
-      }
-
-      // Simple word-based parsing as fallback
-      const words = upperPart.split(/\s+/);
-      for (let i = 0; i < words.length - 1; i++) {
-        if (
-          (words[i] === "BUY" || words[i] === "B") &&
-          /^\d+$/.test(words[i + 1])
-        ) {
-          const amount = Number.parseInt(words[i + 1]);
-          if (amount >= 1 && amount <= 1000) {
-            console.log(`✅ Found BUY command (word-based): ${amount}`);
-            commands.push({
-              action: "BUY",
-              amount: amount,
-              marketHint: words.slice(i + 2).join(" ") || null,
-            });
-          }
-        }
-        if (
-          (words[i] === "SELL" || words[i] === "S") &&
-          /^\d+$/.test(words[i + 1])
-        ) {
-          const amount = Number.parseInt(words[i + 1]);
-          if (amount >= 1 && amount <= 1000) {
-            console.log(`✅ Found SELL command (word-based): ${amount}`);
-            commands.push({
-              action: "SELL",
-              amount: amount,
-              marketHint: words.slice(i + 2).join(" ") || null,
-            });
-          }
+        if (amount >= 1 && amount <= 1000) {
+          commands.push({
+            action: "BUY",
+            amount,
+            marketHint,
+            side,
+          });
         }
       }
     }
 
-    // Remove duplicates
-    const uniqueCommands = commands.filter(
-      (command, index, self) =>
-        index ===
-        self.findIndex(
-          (c) => c.action === command.action && c.amount === command.amount
-        )
-    );
+    return commands;
+  }
 
-    console.log(`🔍 Final parsed commands:`, uniqueCommands);
-    return uniqueCommands;
+  async processCommand(user, command, messageId) {
+    try {
+      if (!user.preferences.emailNotifications) return;
+
+      let market;
+      let marketSelectionMethod = "unknown";
+      let marketSelectionDetails = "";
+
+      console.log(`🔍 Processing command for ${user.email}:`, command);
+
+      // Step 1: Try to find market using hint
+      if (command.marketHint) {
+        const cleanHint = command.marketHint.replace(/[^\w\s]/g, "").trim();
+        console.log(`🔍 Looking for market with hint: "${cleanHint}"`);
+
+        // Try exact title match first
+        market = await Market.findOne({
+          title: { $regex: `^${cleanHint}$`, $options: "i" },
+          status: "active",
+        });
+
+        if (market) {
+          marketSelectionMethod = "exact_title_match";
+          marketSelectionDetails = `Exact match for "${cleanHint}"`;
+        } else {
+          // Try partial match
+          market = await Market.findOne({
+            title: { $regex: cleanHint, $options: "i" },
+            status: "active",
+          });
+
+          if (market) {
+            marketSelectionMethod = "partial_title_match";
+            marketSelectionDetails = `Partial match for "${cleanHint}" in "${market.title}"`;
+          } else {
+            // Try keyword matching
+            const keywords = cleanHint.split(/\s+/);
+            const keywordRegex = keywords
+              .map((word) => `(?=.*${word})`)
+              .join("");
+
+            market = await Market.findOne({
+              title: { $regex: keywordRegex, $options: "i" },
+              status: "active",
+            });
+
+            if (market) {
+              marketSelectionMethod = "keyword_match";
+              marketSelectionDetails = `Keyword match for "${cleanHint}" in "${market.title}"`;
+            }
+          }
+        }
+      }
+
+      // Step 2: Fallback strategies if no hint match
+      if (!market) {
+        const activeMarkets = await Market.find({ status: "active" }).sort({
+          createdAt: -1,
+        });
+
+        console.log(`📊 Found ${activeMarkets.length} active markets`);
+
+        if (activeMarkets.length === 0) {
+          await this.sendErrorEmail(
+            user,
+            "No active markets available for trading."
+          );
+          return;
+        } else if (activeMarkets.length === 1) {
+          market = activeMarkets[0];
+          marketSelectionMethod = "single_active_market";
+          marketSelectionDetails = "Only one active market available";
+        } else {
+          // Multiple markets - try to use the most recent from email cycle
+          const lastEmailCycle = await EmailCycle.findOne()
+            .sort({ createdAt: -1 })
+            .populate("markets");
+
+          if (lastEmailCycle && lastEmailCycle.markets.length > 0) {
+            market = lastEmailCycle.markets.find((m) => m.status === "active");
+            if (market) {
+              marketSelectionMethod = "last_email_cycle";
+              marketSelectionDetails = "Selected from most recent email cycle";
+            }
+          }
+
+          // Final fallback - most recent active market
+          if (!market) {
+            market = activeMarkets[0];
+            marketSelectionMethod = "most_recent_fallback";
+            marketSelectionDetails =
+              "Most recently created active market (fallback)";
+
+            // Send warning about ambiguous selection
+            await this.sendAmbiguousMarketWarning(
+              user,
+              command,
+              activeMarkets,
+              market
+            );
+          }
+        }
+      }
+
+      if (!market) {
+        await this.sendErrorEmail(
+          user,
+          "No suitable market found for trading."
+        );
+        return;
+      }
+
+      console.log(
+        `✅ Selected market: "${market.title}" via ${marketSelectionMethod}`
+      );
+
+      // Check if user has enough points
+      if (user.points < command.amount) {
+        await this.sendErrorEmail(
+          user,
+          `Insufficient points. You have ${user.points} but tried to spend ${command.amount}.`
+        );
+        return;
+      }
+
+      // Execute the trade
+      const result = await FixedMarketService.buyFixedShares(
+        user._id,
+        market._id,
+        command.side || "YES",
+        command.amount
+      );
+
+      const transaction = new Transaction({
+        user: user._id,
+        market: market._id,
+        type: "BUY",
+        amount: result.shares,
+        price: result.probability,
+        pointsChange: -result.cost,
+        source: "email",
+        emailMessageId: messageId,
+        notes: `${marketSelectionMethod}: ${marketSelectionDetails}`,
+      });
+
+      await transaction.save();
+      user.stats.totalPredictions += 1;
+      user.lastActive = new Date();
+      await user.save();
+
+      await emailService.sendTransactionConfirmation(
+        user,
+        transaction,
+        market,
+        marketSelectionMethod,
+        marketSelectionDetails
+      );
+    } catch (error) {
+      console.error("Error processing command:", error);
+      await this.sendErrorEmail(
+        user,
+        "An error occurred while processing your trade."
+      );
+    }
+  }
+
+  async sendAmbiguousMarketWarning(
+    user,
+    command,
+    activeMarkets,
+    selectedMarket
+  ) {
+    try {
+      console.log(`⚠️ Sending ambiguous market warning to ${user.email}`);
+
+      const marketList = activeMarkets
+        .map((m, index) => `${index + 1}. ${m.title}`)
+        .join("\n");
+
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "⚠️ Multiple Markets Available - Trade Executed",
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>⚠️ Multiple Markets Available</h2>
+          
+          <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;">
+            <p><strong>Your command:</strong> <code>${command.action} ${
+          command.amount
+        }${command.marketHint ? ` ${command.marketHint}` : ""} ${
+          command.side
+        }</code></p>
+            <p><strong>We executed your trade in:</strong> "${
+              selectedMarket.title
+            }"</p>
+            ${
+              command.marketHint
+                ? `<p><strong>Market hint "${command.marketHint}" didn't match any market exactly.</strong></p>`
+                : `<p><strong>No market hint provided.</strong></p>`
+            }
+          </div>
+
+          <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <h4>📋 Currently Active Markets:</h4>
+            <ol style="margin: 10px 0;">
+              ${activeMarkets
+                .map((m) => `<li><strong>${m.title}</strong></li>`)
+                .join("")}
+            </ol>
+          </div>
+
+          <div style="background-color: #e3f2fd; padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <h4>💡 To Trade in Specific Markets:</h4>
+            <ul>
+              <li><strong>BUY 50 ${
+                activeMarkets[0].title.split(" ")[0]
+              } YES</strong> - Use key words from the title</li>
+              <li><strong>BUY 50 ${
+                activeMarkets[1]
+                  ? activeMarkets[1].title.split(" ")[0]
+                  : "KEYWORD"
+              } NO</strong> - Include distinctive keywords</li>
+              <li>Be as specific as possible with market names</li>
+            </ul>
+          </div>
+
+          <p><strong>Your trade was still executed successfully!</strong> Check your confirmation email for details.</p>
+        </div>
+      `,
+        text: `
+⚠️ Multiple Markets Available
+
+Your command: ${command.action} ${command.amount}${
+          command.marketHint ? ` ${command.marketHint}` : ""
+        } ${command.side}
+We executed your trade in: "${selectedMarket.title}"
+${
+  command.marketHint
+    ? `Market hint "${command.marketHint}" didn't match any market exactly.`
+    : `No market hint provided.`
+}
+
+Currently Active Markets:
+${marketList}
+
+To Trade in Specific Markets:
+- BUY 50 ${
+          activeMarkets[0].title.split(" ")[0]
+        } YES - Use key words from the title
+- BUY 50 ${
+          activeMarkets[1] ? activeMarkets[1].title.split(" ")[0] : "KEYWORD"
+        } NO - Include distinctive keywords
+- Be as specific as possible with market names
+
+Your trade was still executed successfully! Check your confirmation email for details.
+      `,
+      };
+
+      await emailService.transporter.sendMail(mailOptions);
+      console.log(`✅ Ambiguous market warning sent to ${user.email}`);
+    } catch (error) {
+      console.error(
+        `❌ Failed to send ambiguous market warning to ${user.email}:`,
+        error.message
+      );
+    }
   }
 
   async sendDebugEmail(user, originalContent) {
     try {
       console.log(`📧 Sending debug email to ${user.email}`);
+
+      // Get current active markets for examples
+      const activeMarkets = await Market.find({ status: "active" }).limit(3);
+      const marketExamples =
+        activeMarkets.length > 0
+          ? activeMarkets
+              .map((m) => {
+                const keyword = m.title.split(" ")[0];
+                return `<li><strong>BUY 50 ${keyword} YES</strong> - Trade in "${m.title}"</li>`;
+              })
+              .join("")
+          : "<li><strong>BUY 50 YES</strong> - No specific market needed</li>";
 
       const mailOptions = {
         from: process.env.EMAIL_FROM,
@@ -398,28 +605,44 @@ class ImapService {
           <div style="margin-top: 20px;">
             <h3>✅ Correct Format Examples:</h3>
             <ul style="background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
-              <li><strong>BUY 50</strong> - Buy 50 shares</li>
-              <li><strong>SELL 25</strong> - Sell 25 shares</li>
-              <li><strong>BUY 100 INFLATION</strong> - Buy 100 shares in inflation market</li>
-              <li><strong>B 75</strong> - Short form for buy</li>
-              <li><strong>S 30</strong> - Short form for sell</li>
+              <li><strong>BUY 50</strong> - Buy shares with 50 points (defaults to YES)</li>
+              <li><strong>BUY 50 YES</strong> - Buy YES shares with 50 points</li>
+              <li><strong>BUY 50 NO</strong> - Buy NO shares with 50 points</li>
+              ${marketExamples}
             </ul>
           </div>
 
+          ${
+            activeMarkets.length > 1
+              ? `
           <div style="margin-top: 20px; background-color: #e3f2fd; padding: 15px; border-radius: 8px;">
-            <h4>💡 Tips:</h4>
+            <h4>🎯 Multiple Markets Available:</h4>
             <ul>
-              <li>Keep it simple: just "BUY 50" or "SELL 25"</li>
-              <li>Use numbers between 1 and 1000</li>
-              <li>Avoid extra formatting or signatures</li>
-              <li>Reply directly to market emails</li>
+              ${activeMarkets
+                .map((m) => `<li><strong>${m.title}</strong></li>`)
+                .join("")}
+            </ul>
+            <p><strong>Include keywords</strong> from the market title to specify which one you want to trade in!</p>
+          </div>
+          `
+              : ""
+          }
+
+          <div style="margin-top: 20px; background-color: #f0f9ff; padding: 15px; border-radius: 8px;">
+            <h4>💡 Fixed-Odds Market Rules:</h4>
+            <ul>
+              <li>You can only <strong>BUY</strong> shares (no selling)</li>
+              <li>Choose YES or NO when you buy</li>
+              <li>Shares pay out 100 points each if you're right</li>
+              <li>Use numbers between 1 and 1000 points</li>
+              <li>Include market keywords for specific markets</li>
             </ul>
           </div>
 
           <p>Your current balance: <strong>${user.points} points</strong></p>
           
           <p style="margin-top: 20px;">
-            <strong>Try again!</strong> Just reply with a simple command like "BUY 50"
+            <strong>Try again!</strong> Just reply with "BUY 50 YES" or include market keywords.
           </p>
         </div>
       `,
@@ -432,18 +655,34 @@ Your message: "${originalContent.substring(0, 200)}${
         }"
 
 Correct Format Examples:
-- BUY 50 (Buy 50 shares)
-- SELL 25 (Sell 25 shares)
-- BUY 100 INFLATION (Buy 100 shares in inflation market)
+- BUY 50 (Buy shares with 50 points, defaults to YES)
+- BUY 50 YES (Buy YES shares with 50 points)
+- BUY 50 NO (Buy NO shares with 50 points)
+${activeMarkets
+  .map((m) => `- BUY 50 ${m.title.split(" ")[0]} YES (Trade in "${m.title}")`)
+  .join("\n")}
 
-Tips:
-- Keep it simple: just "BUY 50" or "SELL 25"
-- Use numbers between 1 and 1000
-- Avoid extra formatting or signatures
+${
+  activeMarkets.length > 1
+    ? `
+Multiple Markets Available:
+${activeMarkets.map((m) => `- ${m.title}`).join("\n")}
+
+Include keywords from the market title to specify which one you want to trade in!
+`
+    : ""
+}
+
+Fixed-Odds Market Rules:
+- You can only BUY shares (no selling)
+- Choose YES or NO when you buy
+- Shares pay out 100 points each if you're right
+- Use numbers between 1 and 1000 points
+- Include market keywords for specific markets
 
 Your current balance: ${user.points} points
 
-Try again! Just reply with a simple command like "BUY 50"
+Try again! Just reply with "BUY 50 YES" or include market keywords.
       `,
       };
 
@@ -453,227 +692,6 @@ Try again! Just reply with a simple command like "BUY 50"
       console.error(
         `❌ Failed to send debug email to ${user.email}:`,
         error.message
-      );
-    }
-  }
-
-  async processCommand(user, command, messageId) {
-    try {
-      console.log(
-        `🔄 Processing command: ${command.action} ${command.amount} for user ${user.email}`
-      );
-
-      // Check user preferences
-      if (!user.preferences.emailNotifications) {
-        console.log(
-          `⚠️ User ${user.email} has email notifications disabled - skipping`
-        );
-        return;
-      }
-
-      // Market selection logic
-      let market;
-      let marketSelectionMethod = "unknown";
-
-      // Step 1: Try exact match using marketHint
-      if (command.marketHint) {
-        const cleanHint = command.marketHint.replace(/[^\w\s]/g, "").trim();
-        console.log(`🔍 Looking for market with hint: "${cleanHint}"`);
-
-        market = await Market.findOne({
-          title: { $regex: cleanHint, $options: "i" },
-          status: "active",
-        });
-
-        if (market) {
-          marketSelectionMethod = "hint_match";
-        } else {
-          console.warn(`⚠️ No market matched hint - trying contains`);
-
-          // Step 2: Fuzzy contains match
-          const allMarkets = await Market.find({ status: "active" });
-          market = allMarkets.find((m) =>
-            m.title.toLowerCase().includes(cleanHint.toLowerCase())
-          );
-
-          if (market) {
-            marketSelectionMethod = "fuzzy_contains_match";
-          }
-        }
-      }
-
-      // Step 3: Fallbacks
-      if (!market) {
-        const activeMarkets = await Market.find({ status: "active" }).sort({
-          createdAt: -1,
-        });
-
-        if (activeMarkets.length === 0) {
-          await this.sendErrorEmail(
-            user,
-            "No active markets available for trading."
-          );
-          return;
-        }
-
-        if (activeMarkets.length === 1) {
-          market = activeMarkets[0];
-          marketSelectionMethod = "single_active_market";
-        } else {
-          const lastEmailCycle = await EmailCycle.findOne()
-            .sort({ createdAt: -1 })
-            .populate("markets");
-
-          if (lastEmailCycle && lastEmailCycle.markets.length > 0) {
-            market =
-              lastEmailCycle.markets.find((m) => m.status === "active") ||
-              activeMarkets[0];
-            marketSelectionMethod = "last_email_cycle_fallback";
-          } else {
-            market = activeMarkets[0];
-            marketSelectionMethod = "most_recent_active";
-          }
-        }
-      }
-
-      if (!market) {
-        await this.sendErrorEmail(user, "No suitable market found.");
-        return;
-      }
-
-      console.log(
-        `📈 Market selected: ${market.title} (method: ${marketSelectionMethod})`
-      );
-
-      // Insufficient points check (for BUY)
-      if (command.action === "BUY" && user.points < command.amount) {
-        await this.sendErrorEmail(
-          user,
-          `Insufficient points. You have ${user.points} but tried to spend ${command.amount}.`
-        );
-        return;
-      }
-
-      // Prepare LMSR calculation
-      let transactionResult;
-      if (command.action === "BUY") {
-        transactionResult = LMSRService.calculateSharesForBudget(
-          market.lmsr.sharesYes,
-          market.lmsr.sharesNo,
-          command.amount,
-          "YES",
-          market.lmsr.beta
-        );
-      } else {
-        const position = await Position.findOne({
-          user: user._id,
-          market: market._id,
-        });
-
-        if (!position || position.sharesYes < command.amount) {
-          await this.sendErrorEmail(
-            user,
-            `Insufficient shares to sell. You have ${
-              position?.sharesYes || 0
-            } YES shares.`
-          );
-          return;
-        }
-
-        transactionResult = LMSRService.calculateSellProceeds(
-          market.lmsr.sharesYes,
-          market.lmsr.sharesNo,
-          command.amount,
-          "YES",
-          market.lmsr.beta
-        );
-      }
-
-      const pointsChange =
-        command.action === "BUY"
-          ? -transactionResult.cost || -command.amount
-          : transactionResult.proceeds || command.amount;
-
-      const transaction = new Transaction({
-        user: user._id,
-        market: market._id,
-        type: command.action,
-        amount:
-          command.action === "BUY"
-            ? transactionResult.shares || command.amount
-            : command.amount,
-        price: market.currentProbability,
-        pointsChange,
-        source: "email",
-        emailMessageId: messageId,
-        notes: `Market selected by: ${marketSelectionMethod}`,
-      });
-
-      await transaction.save();
-
-      // Update user
-      user.points += pointsChange;
-      user.stats.totalPredictions += 1;
-      user.lastActive = new Date();
-      await user.save();
-
-      // Update market
-      if (command.action === "BUY") {
-        market.lmsr.sharesYes += transactionResult.shares || command.amount;
-        market.currentProbability =
-          transactionResult.newPrice ||
-          Math.min(100, market.currentProbability + command.amount / 100);
-      } else {
-        market.lmsr.sharesYes -= command.amount;
-        market.currentProbability =
-          transactionResult.newPrice ||
-          Math.max(0, market.currentProbability - command.amount / 100);
-      }
-
-      market.totalVolume += Math.abs(pointsChange);
-      market.lmsr.costFunction = LMSRService.calculateCostFunction(
-        market.lmsr.sharesYes,
-        market.lmsr.sharesNo,
-        market.lmsr.beta
-      );
-      await market.save();
-
-      // Update position
-      let position = await Position.findOne({
-        user: user._id,
-        market: market._id,
-      });
-
-      if (!position) {
-        position = new Position({ user: user._id, market: market._id });
-      }
-
-      if (command.action === "BUY") {
-        position.sharesYes += transactionResult.shares || command.amount;
-        position.totalInvested += Math.abs(pointsChange);
-      } else {
-        position.sharesYes -= command.amount;
-        position.realizedPnL += pointsChange;
-      }
-
-      await position.save();
-
-      // Send confirmation
-      await emailService.sendTransactionConfirmation(
-        user,
-        transaction,
-        market,
-        marketSelectionMethod
-      );
-
-      console.log(
-        `✅ Processed ${command.action} ${command.amount} for ${user.email} on market "${market.title}" (${marketSelectionMethod})`
-      );
-    } catch (error) {
-      console.error("❌ Error in processCommand:", error);
-      await this.sendErrorEmail(
-        user,
-        "An error occurred while processing your trade. Please try again."
       );
     }
   }
@@ -695,7 +713,7 @@ Try again! Just reply with a simple command like "BUY 50"
           <div style="margin-top: 20px;">
             <h3>💡 Tips:</h3>
             <ul>
-              <li>Use format: <strong>BUY [amount]</strong> or <strong>SELL [amount]</strong></li>
+              <li>Use format: <strong>BUY [amount]</strong> or <strong>SELL [shares]</strong></li>
               <li>Check your point balance before buying</li>
               <li>Check your share holdings before selling</li>
               <li>Include market keywords for specific markets</li>
@@ -708,7 +726,7 @@ Try again! Just reply with a simple command like "BUY 50"
 Trade Error: ${errorMessage}
 
 Tips:
-- Use format: BUY [amount] or SELL [amount]
+- Use format: BUY [amount] or SELL [shares]
 - Check your balance: ${user.points} points
 - Include market keywords for specific markets
       `,

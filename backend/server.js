@@ -6,6 +6,7 @@ const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
+const CronJobs = require("./scripts/cronJobs");
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use(limiter);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+CronJobs.start();
 
 // Runtime lock to avoid accidental double starts
 if (process.env.ENABLE_IMAP === "true" && !global.__IMAP_STARTED__) {
@@ -87,6 +90,19 @@ app.use((err, req, res, next) => {
 // 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
+});
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully");
+  CronJobs.stop();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("SIGINT received, shutting down gracefully");
+  CronJobs.stop();
+  process.exit(0);
 });
 
 const PORT = process.env.PORT || 5000;

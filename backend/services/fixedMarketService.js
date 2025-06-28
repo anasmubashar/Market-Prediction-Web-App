@@ -63,4 +63,41 @@ async function buyFixedShares(userId, marketId, side, amount) {
   };
 }
 
-module.exports = { buyFixedShares };
+/**
+ * Calculate shares that can be bought with given budget
+ * @param {number} budget - Points to spend
+ * @param {number} price - Price per share (0-1)
+ * @returns {object} - Calculation result
+ */
+function calculateSharesForBudget(budget, price) {
+  const shares = Math.floor((budget / price) * 100) / 100;
+  const cost = Math.ceil(price * shares * 100) / 100;
+
+  return {
+    shares,
+    cost,
+    newPrice: price, // Fixed odds don't change
+  };
+}
+
+/**
+ * Get market statistics
+ * @param {object} market - Market object
+ * @returns {object} - Market stats
+ */
+function getMarketStats(market) {
+  return {
+    yesPrice: market.fixedYesPrice,
+    noPrice: market.fixedNoPrice,
+    yesProbability: Math.round(market.fixedYesPrice * 100),
+    noProbability: Math.round(market.fixedNoPrice * 100),
+    totalVolume: market.totalVolume,
+    participantCount: market.participantCount,
+  };
+}
+
+module.exports = {
+  buyFixedShares,
+  calculateSharesForBudget,
+  getMarketStats,
+};
