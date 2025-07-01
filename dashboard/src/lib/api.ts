@@ -399,7 +399,7 @@ export const emailsAPI = {
   },
 };
 
-// Admin API
+// Admin API - UPDATED WITH EXCEL EXPORTS
 export const adminAPI = {
   async getDashboardStats(): Promise<DashboardStats> {
     const response = await fetch(`${API_BASE_URL}/admin/dashboard-stats`);
@@ -415,8 +415,17 @@ export const adminAPI = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "users.csv";
+
+    // Get filename from response headers or use default with timestamp
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/"/g, "")
+      : `users_export_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   },
 
@@ -428,8 +437,39 @@ export const adminAPI = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "transactions.csv";
+
+    // Get filename from response headers or use default with timestamp
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/"/g, "")
+      : `transactions_export_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  },
+
+  async exportMarkets() {
+    const response = await fetch(`${API_BASE_URL}/admin/export/markets`);
+    if (!response.ok) throw new Error("Failed to export markets");
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    // Get filename from response headers or use default with timestamp
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/"/g, "")
+      : `markets_export_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   },
 };

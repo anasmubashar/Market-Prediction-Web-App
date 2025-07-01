@@ -11,7 +11,12 @@ router.get("/dashboard-stats", adminController.getDashboardStats);
 router.get("/export/users", adminController.exportUsers);
 
 // Export transactions as CSV
+// router.get("/export/transactions", adminController.exportTransactions);
+
+// Excel export routes
+router.get("/export/users", adminController.exportUsers);
 router.get("/export/transactions", adminController.exportTransactions);
+router.get("/export/markets", adminController.exportMarkets);
 
 // Create admin user (for initial setup)
 router.post(
