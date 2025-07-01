@@ -97,6 +97,8 @@ exports.createMarket = async (req, res) => {
         {
           date: new Date(),
           probability: Math.round(fixedYesPrice * 100),
+          yesVolume: 0,
+          noVolume: 0,
         },
       ],
     });

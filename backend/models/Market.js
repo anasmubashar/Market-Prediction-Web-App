@@ -16,6 +16,36 @@ const probabilityHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const volumeHistorySchema = new mongoose.Schema(
+  {
+    date: {
+      type: Date,
+      required: true,
+    },
+    yesVolume: {
+      type: Number,
+      default: 0,
+    },
+    noVolume: {
+      type: Number,
+      default: 0,
+    },
+    yesPercentage: {
+      type: Number,
+      default: 50,
+      min: 0,
+      max: 100,
+    },
+    noPercentage: {
+      type: Number,
+      default: 50,
+      min: 0,
+      max: 100,
+    },
+  },
+  { _id: false }
+);
+
 const marketSchema = new mongoose.Schema(
   {
     title: {
@@ -46,11 +76,18 @@ const marketSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    yesVolume: {
+      type: Number,
+      default: 0,
+    },
+    noVolume: {
+      type: Number,
+      default: 0,
+    },
     participantCount: {
       type: Number,
       default: 0,
     },
-    // Fixed-odds pricing fields
     fixedYesPrice: {
       type: Number,
       default: 0.5, // 50% probability as decimal
@@ -63,14 +100,11 @@ const marketSchema = new mongoose.Schema(
       min: 0.01,
       max: 0.99,
     },
-    // Keep LMSR fields for backward compatibility during migration
     lmsr: {
-      // Liquidity parameter (higher = more stable prices)
       beta: {
         type: Number,
         default: 100,
       },
-      // Current quantities of YES and NO shares outstanding
       sharesYes: {
         type: Number,
         default: 0,
@@ -79,7 +113,6 @@ const marketSchema = new mongoose.Schema(
         type: Number,
         default: 0,
       },
-      // Cost function value (for LMSR calculations)
       costFunction: {
         type: Number,
         default: 0,
@@ -93,6 +126,7 @@ const marketSchema = new mongoose.Schema(
       notes: String,
     },
     probabilityHistory: [probabilityHistorySchema],
+    volumeHistory: [volumeHistorySchema], // New volume tracking
     tags: [String],
   },
   {
@@ -106,6 +140,26 @@ marketSchema.pre("save", function (next) {
     this.probabilityHistory.push({
       date: new Date(),
       probability: this.currentProbability,
+    });
+  }
+  next();
+});
+
+// Add volume tracking when volume changes
+marketSchema.pre("save", function (next) {
+  if (this.isModified("yesVolume") || this.isModified("noVolume")) {
+    const totalVol = this.yesVolume + this.noVolume;
+    const yesPercentage =
+      totalVol > 0 ? Math.round((this.yesVolume / totalVol) * 100) : 50;
+    const noPercentage =
+      totalVol > 0 ? Math.round((this.noVolume / totalVol) * 100) : 50;
+
+    this.volumeHistory.push({
+      date: new Date(),
+      yesVolume: this.yesVolume,
+      noVolume: this.noVolume,
+      yesPercentage,
+      noPercentage,
     });
   }
   next();

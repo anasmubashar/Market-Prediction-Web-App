@@ -16,91 +16,49 @@ class ChartService {
     backgroundColour: "white",
   });
 
-  // Entry point: returns buffer
-  // Updated to match the emailService call signature
+  // Main entry point: returns volume percentage line chart matching the design
   static async generateProbabilityChartBuffer(market, marketId = null) {
     try {
-      const history = market.probabilityHistory || [];
+      const volumeHistory = market.volumeHistory || [];
 
-      if (history.length === 0) {
-        return await this.generateSimpleChartBuffer(
-          market.currentProbability,
-          market.title
-        );
+      if (volumeHistory.length === 0) {
+        // If no volume history, show current volume or flat line
+        const yesVolume = market.yesVolume || 0;
+        const noVolume = market.noVolume || 0;
+        const totalVolume = yesVolume + noVolume;
+
+        if (totalVolume === 0) {
+          return await this.generateNoVolumeChart(market.title);
+        }
+
+        const yesPercentage = Math.round((yesVolume / totalVolume) * 100);
+        return await this.generateSinglePointChart(yesPercentage, market.title);
       }
 
-      return await this.generateLineChartBuffer(history, market.title);
+      return await this.generateVolumeLineChart(volumeHistory, market.title);
     } catch (error) {
       console.error("Error generating chart buffer:", error);
-      // Return a fallback chart instead of null
       return await this.generateErrorChartBuffer(market.title);
     }
   }
 
-  // Bar chart for static probability (enhanced for fixed-odds)
-  static async generateSimpleChartBuffer(
-    probability,
-    title = "Market Probability"
-  ) {
-    const config = {
-      type: "bar",
-      data: {
-        labels: ["YES", "NO"],
-        datasets: [
-          {
-            label: "Probability (%)",
-            data: [probability, 100 - probability],
-            backgroundColor: [
-              "rgba(34, 197, 94, 0.6)",
-              "rgba(239, 68, 68, 0.6)",
-            ],
-            borderColor: ["rgba(34, 197, 94, 1)", "rgba(239, 68, 68, 1)"],
-            borderWidth: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: false,
-        scales: {
-          y: {
-            min: 0,
-            max: 100,
-            ticks: {
-              stepSize: 20,
-              callback: (value) => value + "%",
-            },
-          },
-        },
-        plugins: {
-          title: {
-            display: true,
-            text: title,
-            font: { size: 16, family: "'DejaVu Sans', sans-serif" },
-          },
-          legend: {
-            display: false,
-          },
-        },
-      },
-    };
+  // Volume percentage line chart matching the exact design
+  static async generateVolumeLineChart(volumeHistory, title) {
+    // Limit to last 20 data points for readability
+    const recentHistory = volumeHistory.slice(-20);
 
-    return await this.chartJSNodeCanvas.renderToBuffer(config);
-  }
-
-  // Line chart for historical probabilities (enhanced)
-  static async generateLineChartBuffer(history, title) {
-    // Limit to last 30 data points for readability
-    const recentHistory = history.slice(-30);
-
-    const labels = recentHistory.map((point) =>
-      new Date(point.date).toLocaleDateString("en-US", {
+    const labels = recentHistory.map((point) => {
+      const date = new Date(point.date);
+      return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         hour: "2-digit",
-      })
-    );
+        minute: "2-digit",
+        hour12: true,
+      });
+    });
 
-    const dataPoints = recentHistory.map((point) => point.probability);
+    const yesData = recentHistory.map((point) => point.yesPercentage);
 
     const config = {
       type: "line",
@@ -109,19 +67,31 @@ class ChartService {
         datasets: [
           {
             label: "YES Probability (%)",
-            data: dataPoints,
+            data: yesData,
             fill: true,
-            backgroundColor: "rgba(34, 197, 94, 0.1)",
-            borderColor: "rgba(34, 197, 94, 1)",
+            backgroundColor: "rgba(34, 197, 94, 0.2)", // Light green fill
+            borderColor: "rgba(34, 197, 94, 1)", // Green line
             borderWidth: 2,
-            tension: 0.3,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            tension: 0.1, // Slight curve
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: "rgba(34, 197, 94, 1)",
+            pointBorderColor: "rgba(34, 197, 94, 1)",
+            pointBorderWidth: 1,
           },
         ],
       },
       options: {
         responsive: false,
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            top: 20,
+            right: 20,
+            bottom: 20,
+            left: 20,
+          },
+        },
         scales: {
           y: {
             min: 0,
@@ -129,11 +99,33 @@ class ChartService {
             ticks: {
               stepSize: 20,
               callback: (value) => value + "%",
+              font: {
+                size: 11,
+                color: "#666",
+              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.1)",
+              lineWidth: 1,
+            },
+            border: {
+              color: "rgba(0, 0, 0, 0.2)",
             },
           },
           x: {
             ticks: {
-              maxTicksLimit: 8, // Limit number of x-axis labels
+              maxTicksLimit: 6,
+              font: {
+                size: 11,
+                color: "#666",
+              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.1)",
+              lineWidth: 1,
+            },
+            border: {
+              color: "rgba(0, 0, 0, 0.2)",
             },
           },
         },
@@ -141,11 +133,33 @@ class ChartService {
           title: {
             display: true,
             text: title,
-            font: { size: 16, family: "'DejaVu Sans', sans-serif" },
+            font: {
+              size: 14,
+              family: "'DejaVu Sans', sans-serif",
+              weight: "normal",
+            },
+            color: "#666",
+            padding: {
+              bottom: 20,
+            },
           },
           legend: {
             display: true,
             position: "bottom",
+            labels: {
+              usePointStyle: true,
+              pointStyle: "rect",
+              font: {
+                size: 12,
+              },
+              color: "#666",
+              padding: 15,
+            },
+          },
+        },
+        elements: {
+          point: {
+            hoverRadius: 6,
           },
         },
       },
@@ -154,17 +168,245 @@ class ChartService {
     return await this.chartJSNodeCanvas.renderToBuffer(config);
   }
 
-  // New: Error fallback chart
+  // Single point chart when there's only one data point
+  static async generateSinglePointChart(yesPercentage, title) {
+    const config = {
+      type: "line",
+      data: {
+        labels: ["Current"],
+        datasets: [
+          {
+            label: "YES Probability (%)",
+            data: [yesPercentage],
+            fill: true,
+            backgroundColor: "rgba(34, 197, 94, 0.2)",
+            borderColor: "rgba(34, 197, 94, 1)",
+            borderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            pointBackgroundColor: "rgba(34, 197, 94, 1)",
+            pointBorderColor: "rgba(34, 197, 94, 1)",
+            pointBorderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            top: 20,
+            right: 20,
+            bottom: 20,
+            left: 20,
+          },
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            ticks: {
+              stepSize: 20,
+              callback: (value) => value + "%",
+              font: {
+                size: 11,
+                color: "#666",
+              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.1)",
+              lineWidth: 1,
+            },
+            border: {
+              color: "rgba(0, 0, 0, 0.2)",
+            },
+          },
+          x: {
+            ticks: {
+              font: {
+                size: 11,
+                color: "#666",
+              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.1)",
+              lineWidth: 1,
+            },
+            border: {
+              color: "rgba(0, 0, 0, 0.2)",
+            },
+          },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: `${title} (${yesPercentage}% YES Volume)`,
+            font: {
+              size: 14,
+              family: "'DejaVu Sans', sans-serif",
+              weight: "normal",
+            },
+            color: "#666",
+            padding: {
+              bottom: 20,
+            },
+          },
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: {
+              usePointStyle: true,
+              pointStyle: "rect",
+              font: {
+                size: 12,
+              },
+              color: "#666",
+              padding: 15,
+            },
+          },
+        },
+      },
+    };
+
+    return await this.chartJSNodeCanvas.renderToBuffer(config);
+  }
+
+  // No volume chart (when no trades have been made) - flat line at 50%
+  static async generateNoVolumeChart(title) {
+    // Generate 4 time points for a flat line
+    const now = new Date();
+    const labels = [];
+    const data = [];
+
+    for (let i = 3; i >= 0; i--) {
+      const time = new Date(now.getTime() - i * 60 * 60 * 1000); // 1 hour intervals
+      labels.push(
+        time.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      );
+      data.push(50); // Flat at 50%
+    }
+
+    const config = {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "YES Probability (%)",
+            data,
+            fill: true,
+            backgroundColor: "rgba(156, 163, 175, 0.2)", // Gray fill
+            borderColor: "rgba(156, 163, 175, 1)", // Gray line
+            borderWidth: 2,
+            borderDash: [5, 5], // Dashed line to indicate no real data
+            tension: 0,
+            pointRadius: 4,
+            pointBackgroundColor: "rgba(156, 163, 175, 1)",
+            pointBorderColor: "rgba(156, 163, 175, 1)",
+            pointBorderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            top: 20,
+            right: 20,
+            bottom: 20,
+            left: 20,
+          },
+        },
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            ticks: {
+              stepSize: 20,
+              callback: (value) => value + "%",
+              font: {
+                size: 11,
+                color: "#666",
+              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.1)",
+              lineWidth: 1,
+            },
+            border: {
+              color: "rgba(0, 0, 0, 0.2)",
+            },
+          },
+          x: {
+            ticks: {
+              font: {
+                size: 11,
+                color: "#666",
+              },
+            },
+            grid: {
+              color: "rgba(0, 0, 0, 0.1)",
+              lineWidth: 1,
+            },
+            border: {
+              color: "rgba(0, 0, 0, 0.2)",
+            },
+          },
+        },
+        plugins: {
+          title: {
+            display: true,
+            text: title,
+            font: {
+              size: 14,
+              family: "'DejaVu Sans', sans-serif",
+              weight: "normal",
+            },
+            color: "#666",
+            padding: {
+              bottom: 20,
+            },
+          },
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: {
+              usePointStyle: true,
+              pointStyle: "rect",
+              font: {
+                size: 12,
+              },
+              color: "#666",
+              padding: 15,
+            },
+          },
+        },
+      },
+    };
+
+    return await this.chartJSNodeCanvas.renderToBuffer(config);
+  }
+
+  // Error fallback chart
   static async generateErrorChartBuffer(title = "Market Chart") {
     const config = {
-      type: "bar",
+      type: "line",
       data: {
-        labels: ["Chart Error"],
+        labels: ["Error"],
         datasets: [
           {
             label: "Error",
             data: [0],
-            backgroundColor: "rgba(239, 68, 68, 0.6)",
+            backgroundColor: "rgba(239, 68, 68, 0.2)",
+            borderColor: "rgba(239, 68, 68, 1)",
+            borderWidth: 2,
           },
         ],
       },
@@ -177,151 +419,7 @@ class ChartService {
           title: {
             display: true,
             text: `${title} - Chart Error`,
-            font: { size: 16, family: "'DejaVu Sans', sans-serif" },
-          },
-        },
-      },
-    };
-
-    return await this.chartJSNodeCanvas.renderToBuffer(config);
-  }
-
-  // New: Generate fixed-odds pricing chart
-  static async generateFixedOddsPricingChart(market) {
-    try {
-      const yesPrice = (market.fixedYesPrice * 100).toFixed(1);
-      const noPrice = (market.fixedNoPrice * 100).toFixed(1);
-
-      const config = {
-        type: "doughnut",
-        data: {
-          labels: [`YES (${yesPrice}¢)`, `NO (${noPrice}¢)`],
-          datasets: [
-            {
-              data: [market.fixedYesPrice * 100, market.fixedNoPrice * 100],
-              backgroundColor: [
-                "rgba(34, 197, 94, 0.8)",
-                "rgba(239, 68, 68, 0.8)",
-              ],
-              borderColor: ["rgba(34, 197, 94, 1)", "rgba(239, 68, 68, 1)"],
-              borderWidth: 2,
-            },
-          ],
-        },
-        options: {
-          responsive: false,
-          plugins: {
-            title: {
-              display: true,
-              text: `${market.title} - Fixed Odds Pricing`,
-              font: { size: 16, family: "'DejaVu Sans', sans-serif" },
-            },
-            legend: {
-              display: true,
-              position: "bottom",
-            },
-          },
-        },
-      };
-
-      return await this.chartJSNodeCanvas.renderToBuffer(config);
-    } catch (error) {
-      console.error("Error generating fixed-odds pricing chart:", error);
-      return await this.generateErrorChartBuffer(market.title);
-    }
-  }
-
-  // New: Generate market volume chart
-  static async generateVolumeChart(market, transactions = []) {
-    try {
-      if (transactions.length === 0) {
-        return await this.generateSimpleVolumeChart(
-          market.totalVolume,
-          market.title
-        );
-      }
-
-      // Group transactions by day
-      const dailyVolume = {};
-      transactions.forEach((tx) => {
-        const date = new Date(tx.createdAt).toLocaleDateString();
-        dailyVolume[date] =
-          (dailyVolume[date] || 0) + Math.abs(tx.pointsChange);
-      });
-
-      const labels = Object.keys(dailyVolume).slice(-14); // Last 14 days
-      const data = labels.map((date) => dailyVolume[date]);
-
-      const config = {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: "Daily Volume (Points)",
-              data,
-              backgroundColor: "rgba(99, 102, 241, 0.6)",
-              borderColor: "rgba(99, 102, 241, 1)",
-              borderWidth: 1,
-            },
-          ],
-        },
-        options: {
-          responsive: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: (value) => value + " pts",
-              },
-            },
-          },
-          plugins: {
-            title: {
-              display: true,
-              text: `${market.title} - Trading Volume`,
-              font: { size: 16, family: "'DejaVu Sans', sans-serif" },
-            },
-          },
-        },
-      };
-
-      return await this.chartJSNodeCanvas.renderToBuffer(config);
-    } catch (error) {
-      console.error("Error generating volume chart:", error);
-      return await this.generateErrorChartBuffer(market.title);
-    }
-  }
-
-  // Simple volume chart for markets with no transaction history
-  static async generateSimpleVolumeChart(totalVolume, title) {
-    const config = {
-      type: "bar",
-      data: {
-        labels: ["Total Volume"],
-        datasets: [
-          {
-            label: "Volume (Points)",
-            data: [totalVolume],
-            backgroundColor: "rgba(99, 102, 241, 0.6)",
-          },
-        ],
-      },
-      options: {
-        responsive: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: (value) => value + " pts",
-            },
-          },
-        },
-        plugins: {
-          title: {
-            display: true,
-            text: `${title} - Total Volume`,
-            font: { size: 16, family: "'DejaVu Sans', sans-serif" },
+            font: { size: 14, family: "'DejaVu Sans', sans-serif" },
           },
         },
       },

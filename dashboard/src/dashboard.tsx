@@ -1,35 +1,16 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -37,12 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { ChartTooltip } from "@/components/ui/chart";
+} from "@/components/ui/dialog"
+import { ChartTooltip } from "@/components/ui/chart"
 import {
   Users,
   Download,
-  // Settings,
   Mail,
   RefreshCw,
   Edit,
@@ -56,92 +36,70 @@ import {
   ArrowDown,
   AlertCircle,
   Clock,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
+  CheckCircle,
+  XCircle,
+  Gavel,
+  DollarSign,
+} from "lucide-react"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import {
   usersAPI,
   marketsAPI,
   transactionsAPI,
   emailsAPI,
   adminAPI,
-  // type RecurrenceConfig,
   type ScheduleFormData,
   type User,
   type Market,
   type Transaction,
   type DashboardStats,
-} from "./lib/api";
+} from "./lib/api"
 
-type SortField =
-  | "email"
-  | "points"
-  | "accuracy"
-  | "predictions"
-  | "joinDate"
-  | "lastActive";
-type SortDirection = "asc" | "desc";
-type TransactionSortField =
-  | "email"
-  | "action"
-  | "market"
-  | "points"
-  | "timestamp";
+type SortField = "email" | "points" | "accuracy" | "predictions" | "joinDate" | "lastActive"
+type SortDirection = "asc" | "desc"
+type TransactionSortField = "email" | "action" | "market" | "points" | "timestamp"
 
 export default function AdminDashboard() {
   // State
-  const [users, setUsers] = useState<User[]>([]);
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
-    null
-  );
-  // const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isScheduling, setIsScheduling] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [users, setUsers] = useState<User[]>([])
+  const [markets, setMarkets] = useState<Market[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isScheduling, setIsScheduling] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormData>({
     title: "",
-    // markets: [],
     isActive: true,
     recurrence: {
       frequency: "daily",
       timeOfDay: "09:00",
     },
-  });
+  })
 
-  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false)
 
   // Pagination and sorting
-  const [currentPage, setCurrentPage] = useState(1);
-  const [usersPerPage] = useState(10);
-  const [transactionPage, setTransactionPage] = useState(1);
-  const [transactionsPerPage] = useState(10);
-  const [userSortField, setUserSortField] = useState<SortField>("email");
-  const [userSortDirection, setUserSortDirection] =
-    useState<SortDirection>("asc");
-  const [transactionSortField, setTransactionSortField] =
-    useState<TransactionSortField>("timestamp");
-  const [transactionSortDirection, setTransactionSortDirection] =
-    useState<SortDirection>("desc");
-  const [selectedMarketId, setSelectedMarketId] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1)
+  const [usersPerPage] = useState(10)
+  const [transactionPage, setTransactionPage] = useState(1)
+  const [transactionsPerPage] = useState(10)
+  const [userSortField, setUserSortField] = useState<SortField>("email")
+  const [userSortDirection, setUserSortDirection] = useState<SortDirection>("asc")
+  const [transactionSortField, setTransactionSortField] = useState<TransactionSortField>("timestamp")
+  const [transactionSortDirection, setTransactionSortDirection] = useState<SortDirection>("desc")
+  const [selectedMarketId, setSelectedMarketId] = useState<string>("")
 
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isCustomEmailDialogOpen, setIsCustomEmailDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isCustomEmailDialogOpen, setIsCustomEmailDialogOpen] = useState(false)
 
-  const [customSubject, setCustomSubject] = useState("");
-  const [customHtml, setCustomHtml] = useState("");
+  const [customSubject, setCustomSubject] = useState("")
+  const [customHtml, setCustomHtml] = useState("")
 
-  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
-  const [editedUser, setEditedUser] = useState<User | null>(null);
-  const [editedPoints, setEditedPoints] = useState<number>(0);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false)
+  const [editedUser, setEditedUser] = useState<User | null>(null)
+  const [editedPoints, setEditedPoints] = useState<number>(0)
 
   // New market form
   const [newMarket, setNewMarket] = useState({
@@ -149,189 +107,207 @@ export default function AdminDashboard() {
     description: "",
     deadline: "",
     tags: "",
-  });
+  })
 
-  const [isEditMarketDialogOpen, setIsEditMarketDialogOpen] = useState(false);
-  const [editedMarket, setEditedMarket] = useState<Partial<Market> | null>(
-    null
-  );
+  const [isEditMarketDialogOpen, setIsEditMarketDialogOpen] = useState(false)
+  const [editedMarket, setEditedMarket] = useState<Partial<Market> | null>(null)
+
+  // Market resolution state
+  const [isResolutionDialogOpen, setIsResolutionDialogOpen] = useState(false)
+  const [resolutionOutcome, setResolutionOutcome] = useState<"YES" | "NO" | "">("")
+  const [resolutionNotes, setResolutionNotes] = useState("")
+  const [isResolving, setIsResolving] = useState(false)
 
   // Load initial data
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    loadDashboardData()
+  }, [])
 
   const loadDashboardData = async () => {
     try {
-      setIsLoading(true);
-      setError("");
+      setIsLoading(true)
+      setError("")
 
-      const [statsResult, usersResult, marketsResult, transactionsResult] =
-        await Promise.all([
-          adminAPI.getDashboardStats(),
-          usersAPI.getUsers(
-            currentPage,
-            usersPerPage,
-            userSortField,
-            userSortDirection
-          ),
-          marketsAPI.getMarkets("active"),
-          transactionsAPI.getTransactions(
-            transactionPage,
-            transactionsPerPage,
-            transactionSortField,
-            transactionSortDirection
-          ),
-        ]);
+      const [statsResult, usersResult, marketsResult, transactionsResult] = await Promise.all([
+        adminAPI.getDashboardStats(),
+        usersAPI.getUsers(currentPage, usersPerPage, userSortField, userSortDirection),
+        marketsAPI.getMarkets(), // Get all markets, not just active
+        transactionsAPI.getTransactions(
+          transactionPage,
+          transactionsPerPage,
+          transactionSortField,
+          transactionSortDirection,
+        ),
+      ])
 
-      setDashboardStats(statsResult);
-      setUsers(usersResult.users);
-      setMarkets(marketsResult.markets);
-      setTransactions(transactionsResult.transactions);
+      setDashboardStats(statsResult)
+      setUsers(usersResult.users)
+      setMarkets(marketsResult.markets)
+      setTransactions(transactionsResult.transactions)
 
       if (marketsResult.markets.length > 0 && !selectedMarketId) {
-        setSelectedMarketId(marketsResult.markets[0]._id);
+        setSelectedMarketId(marketsResult.markets[0]._id)
       }
     } catch (err) {
-      console.error("Error loading dashboard data:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load dashboard data"
-      );
+      console.error("Error loading dashboard data:", err)
+      setError(err instanceof Error ? err.message : "Failed to load dashboard data")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleUserSort = (field: SortField) => {
     if (userSortField === field) {
-      setUserSortDirection(userSortDirection === "asc" ? "desc" : "asc");
+      setUserSortDirection(userSortDirection === "asc" ? "desc" : "asc")
     } else {
-      setUserSortField(field);
-      setUserSortDirection("asc");
+      setUserSortField(field)
+      setUserSortDirection("asc")
     }
-    setCurrentPage(1);
-    loadDashboardData();
-  };
+    setCurrentPage(1)
+    loadDashboardData()
+  }
 
   const handleTransactionSort = (field: TransactionSortField) => {
     if (transactionSortField === field) {
-      setTransactionSortDirection(
-        transactionSortDirection === "asc" ? "desc" : "asc"
-      );
+      setTransactionSortDirection(transactionSortDirection === "asc" ? "desc" : "asc")
     } else {
-      setTransactionSortField(field);
-      setTransactionSortDirection("asc");
+      setTransactionSortField(field)
+      setTransactionSortDirection("asc")
     }
-    setTransactionPage(1);
-    loadDashboardData();
-  };
+    setTransactionPage(1)
+    loadDashboardData()
+  }
 
   const getSortIcon = (field: SortField) => {
-    if (userSortField !== field) return <ArrowUpDown className="w-4 h-4" />;
-    return userSortDirection === "asc" ? (
-      <ArrowUp className="w-4 h-4" />
-    ) : (
-      <ArrowDown className="w-4 h-4" />
-    );
-  };
+    if (userSortField !== field) return <ArrowUpDown className="w-4 h-4" />
+    return userSortDirection === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+  }
 
   const getTransactionSortIcon = (field: TransactionSortField) => {
-    if (transactionSortField !== field)
-      return <ArrowUpDown className="w-4 h-4" />;
-    return transactionSortDirection === "asc" ? (
-      <ArrowUp className="w-4 h-4" />
-    ) : (
-      <ArrowDown className="w-4 h-4" />
-    );
-  };
+    if (transactionSortField !== field) return <ArrowUpDown className="w-4 h-4" />
+    return transactionSortDirection === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+  }
 
   const exportUserData = async () => {
     try {
-      await adminAPI.exportUsers();
-      setSuccess("User data exported successfully!");
+      await adminAPI.exportUsers()
+      setSuccess("User data exported successfully!")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      setError(err instanceof Error ? err.message : "Export failed")
     }
-  };
+  }
 
   const exportTransactionData = async () => {
     try {
-      await adminAPI.exportTransactions();
-      setSuccess("Transaction data exported successfully!");
+      await adminAPI.exportTransactions()
+      setSuccess("Transaction data exported successfully!")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      setError(err instanceof Error ? err.message : "Export failed")
     }
-  };
+  }
 
   const sendMarketCycle = async () => {
     try {
-      setIsScheduling(true);
-      setError("");
+      setIsScheduling(true)
+      setError("")
 
-      const result = await emailsAPI.sendMarketCycle();
-      setSuccess(
-        `Market cycle emails sent to ${result.emailCycle.totalRecipients} participants!`
-      );
+      const result = await emailsAPI.sendMarketCycle()
+      setSuccess(`Market cycle emails sent to ${result.emailCycle.totalRecipients} participants!`)
 
       // Refresh dashboard stats
-      const stats = await adminAPI.getDashboardStats();
-      setDashboardStats(stats);
+      const stats = await adminAPI.getDashboardStats()
+      setDashboardStats(stats)
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to send market cycle"
-      );
+      setError(err instanceof Error ? err.message : "Failed to send market cycle")
     } finally {
-      setIsScheduling(false);
+      setIsScheduling(false)
     }
-  };
+  }
 
   const createMarket = async () => {
     try {
-      setError("");
+      setError("")
 
       if (!newMarket.title || !newMarket.deadline) {
-        setError("Title and deadline are required");
-        return;
+        setError("Title and deadline are required")
+        return
       }
 
       const marketData = {
         title: newMarket.title,
         description: newMarket.description,
         deadline: newMarket.deadline,
-        tags: newMarket.tags
-          ? newMarket.tags.split(",").map((tag) => tag.trim())
-          : [],
-      };
+        tags: newMarket.tags ? newMarket.tags.split(",").map((tag) => tag.trim()) : [],
+      }
 
-      await marketsAPI.createMarket(marketData);
-      setSuccess("Market created successfully!");
-      setNewMarket({ title: "", description: "", deadline: "", tags: "" });
+      await marketsAPI.createMarket(marketData)
+      setSuccess("Market created successfully!")
+      setNewMarket({ title: "", description: "", deadline: "", tags: "" })
 
       // Refresh markets
-      const marketsResult = await marketsAPI.getMarkets("active");
-      setMarkets(marketsResult.markets);
+      const marketsResult = await marketsAPI.getMarkets()
+      setMarkets(marketsResult.markets)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create market");
+      setError(err instanceof Error ? err.message : "Failed to create market")
     }
-  };
+  }
 
   const deleteMarket = async (marketId: string) => {
     try {
-      setError("");
-      await marketsAPI.deleteMarket(marketId);
-      setSuccess("Market deleted successfully!");
+      setError("")
+      await marketsAPI.deleteMarket(marketId)
+      setSuccess("Market deleted successfully!")
 
       // Refresh markets
-      const marketsResult = await marketsAPI.getMarkets("active");
-      setMarkets(marketsResult.markets);
+      const marketsResult = await marketsAPI.getMarkets()
+      setMarkets(marketsResult.markets)
 
       if (selectedMarketId === marketId && marketsResult.markets.length > 0) {
-        setSelectedMarketId(marketsResult.markets[0]._id);
+        setSelectedMarketId(marketsResult.markets[0]._id)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete market");
+      setError(err instanceof Error ? err.message : "Failed to delete market")
     }
-  };
+  }
+
+  const resolveMarket = async () => {
+    if (!selectedMarket || !resolutionOutcome) {
+      setError("Please select an outcome")
+      return
+    }
+
+    try {
+      setIsResolving(true)
+      setError("")
+
+      await marketsAPI.resolveMarket(selectedMarket._id, resolutionOutcome, resolutionNotes)
+
+      setSuccess(`Market resolved as ${resolutionOutcome}! Payouts have been distributed.`)
+      setIsResolutionDialogOpen(false)
+      setResolutionOutcome("")
+      setResolutionNotes("")
+
+      // Refresh markets and dashboard stats
+      await loadDashboardData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resolve market")
+    } finally {
+      setIsResolving(false)
+    }
+  }
+
+  const closeExpiredMarkets = async () => {
+    try {
+      setError("")
+      const result = await marketsAPI.closeExpiredMarkets()
+      setSuccess(`Closed ${result.closedCount} expired markets`)
+
+      // Refresh markets
+      await loadDashboardData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to close expired markets")
+    }
+  }
 
   if (isLoading) {
     return (
@@ -341,50 +317,51 @@ export default function AdminDashboard() {
           <p>Loading dashboard...</p>
         </div>
       </div>
-    );
+    )
   }
 
-  const selectedMarket = markets.find(
-    (market) => market._id === selectedMarketId
-  );
+  const selectedMarket = markets.find((market) => market._id === selectedMarketId)
 
   const createEmailSchedule = async () => {
-    console.log(scheduleForm);
+    console.log(scheduleForm)
     try {
-      const response = await fetch(
-        `${
-          import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-        }/emails/schedule`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/emails/schedule`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify(scheduleForm),
-        }
-      );
+        body: JSON.stringify(scheduleForm),
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok) {
-        console.error(
-          "Failed to create schedule:",
-          data.error || response.statusText
-        );
-        alert("Failed to create schedule: " + (data.error || "Unknown error"));
-        return;
+        console.error("Failed to create schedule:", data.error || response.statusText)
+        alert("Failed to create schedule: " + (data.error || "Unknown error"))
+        return
       }
 
-      alert("Schedule created successfully!");
-      setIsScheduleDialogOpen(false);
-      // Optionally: reset the form here
-      // setScheduleForm({ ... });
+      alert("Schedule created successfully!")
+      setIsScheduleDialogOpen(false)
     } catch (error) {
-      console.error("Error creating schedule:", error);
-      alert("Error creating schedule. Please try again.");
+      console.error("Error creating schedule:", error)
+      alert("Error creating schedule. Please try again.")
     }
-  };
+  }
+
+  const getMarketStatusBadge = (market: Market) => {
+    switch (market.status) {
+      case "active":
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>
+      case "closed":
+        return <Badge className="bg-yellow-100 text-yellow-800">Closed</Badge>
+      case "resolved":
+        return <Badge className="bg-blue-100 text-blue-800">Resolved</Badge>
+      default:
+        return <Badge variant="secondary">{market.status}</Badge>
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -392,18 +369,11 @@ export default function AdminDashboard() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Admin Dashboard
-            </h1>
-            <p className="text-gray-600">
-              Prediction Market Research Management
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600">Prediction Market Research Management</p>
           </div>
           <div className="flex items-center space-x-4">
-            <Badge
-              variant="outline"
-              className="text-green-600 border-green-600"
-            >
+            <Badge variant="outline" className="text-green-600 border-green-600">
               {dashboardStats?.users.active || 0} Active Participants
             </Badge>
           </div>
@@ -421,32 +391,25 @@ export default function AdminDashboard() {
 
         {success && (
           <Alert className="border-green-200 bg-green-50">
-            <AlertDescription className="text-green-800">
-              {success}
-            </AlertDescription>
+            <AlertDescription className="text-green-800">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Button
-            onClick={sendMarketCycle}
-            disabled={isScheduling}
-            className="h-20 flex-col"
-          >
-            {isScheduling ? (
-              <RefreshCw className="w-6 h-6 mb-2 animate-spin" />
-            ) : (
-              <Send className="w-6 h-6 mb-2" />
-            )}
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <Button onClick={sendMarketCycle} disabled={isScheduling} className="h-20 flex-col">
+            {isScheduling ? <RefreshCw className="w-6 h-6 mb-2 animate-spin" /> : <Send className="w-6 h-6 mb-2" />}
             {isScheduling ? "Sending..." : "Send Market Cycle"}
           </Button>
-          <Dialog
-            open={isScheduleDialogOpen}
-            onOpenChange={setIsScheduleDialogOpen}
-          >
+
+          {/* <Button onClick={closeExpiredMarkets} variant="outline" className="h-20 flex-col bg-transparent">
+            <Clock className="w-6 h-6 mb-2" />
+            Close Expired Markets
+          </Button> */}
+
+          <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-20 flex-col">
+              <Button variant="outline" className="h-20 flex-col bg-transparent">
                 <Clock className="w-6 h-6 mb-2" />
                 Schedule Emails
               </Button>
@@ -454,9 +417,7 @@ export default function AdminDashboard() {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Schedule Email Cycles</DialogTitle>
-                <DialogDescription>
-                  Set up automatic email sending for market cycles
-                </DialogDescription>
+                <DialogDescription>Set up automatic email sending for market cycles</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -525,15 +486,13 @@ export default function AdminDashboard() {
                   <div>
                     <Label htmlFor="day-of-week">Day of Week</Label>
                     <Select
-                      value={
-                        scheduleForm.recurrence.dayOfWeek?.toString() || "1"
-                      }
+                      value={scheduleForm.recurrence.dayOfWeek?.toString() || "1"}
                       onValueChange={(value) =>
                         setScheduleForm({
                           ...scheduleForm,
                           recurrence: {
                             ...scheduleForm.recurrence,
-                            dayOfWeek: parseInt(value),
+                            dayOfWeek: Number.parseInt(value),
                           },
                         })
                       }
@@ -568,7 +527,7 @@ export default function AdminDashboard() {
                           ...scheduleForm,
                           recurrence: {
                             ...scheduleForm.recurrence,
-                            dayOfMonth: parseInt(e.target.value),
+                            dayOfMonth: Number.parseInt(e.target.value),
                           },
                         })
                       }
@@ -595,9 +554,7 @@ export default function AdminDashboard() {
                       }
                       className="mt-1"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Format: minute hour day month day-of-week
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Format: minute hour day month day-of-week</p>
                   </div>
                 )}
 
@@ -605,18 +562,13 @@ export default function AdminDashboard() {
                   <Switch
                     id="is-active"
                     checked={scheduleForm.isActive}
-                    onCheckedChange={(checked) =>
-                      setScheduleForm({ ...scheduleForm, isActive: checked })
-                    }
+                    onCheckedChange={(checked) => setScheduleForm({ ...scheduleForm, isActive: checked })}
                   />
                   <Label htmlFor="is-active">Start immediately</Label>
                 </div>
 
                 <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsScheduleDialogOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button onClick={createEmailSchedule}>Create Schedule</Button>
@@ -625,25 +577,17 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
 
-          <Button
-            variant="outline"
-            onClick={exportUserData}
-            className="h-20 flex-col"
-          >
+          <Button variant="outline" onClick={exportUserData} className="h-20 flex-col bg-transparent">
             <Download className="w-6 h-6 mb-2" />
             Export Users
           </Button>
-          <Button
-            variant="outline"
-            onClick={exportTransactionData}
-            className="h-20 flex-col"
-          >
+          <Button variant="outline" onClick={exportTransactionData} className="h-20 flex-col bg-transparent">
             <Activity className="w-6 h-6 mb-2" />
             Export Transactions
           </Button>
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-20 flex-col">
+              <Button variant="outline" className="h-20 flex-col bg-transparent">
                 <Plus className="w-6 h-6 mb-2" />
                 New Market
               </Button>
@@ -651,9 +595,7 @@ export default function AdminDashboard() {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Create New Market</DialogTitle>
-                <DialogDescription>
-                  Add a new prediction market for participants
-                </DialogDescription>
+                <DialogDescription>Add a new prediction market for participants</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -662,16 +604,12 @@ export default function AdminDashboard() {
                     id="market-title"
                     placeholder="Will [event] happen by [date]?"
                     value={newMarket.title}
-                    onChange={(e) =>
-                      setNewMarket({ ...newMarket, title: e.target.value })
-                    }
+                    onChange={(e) => setNewMarket({ ...newMarket, title: e.target.value })}
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="market-description">
-                    Description (Optional)
-                  </Label>
+                  <Label htmlFor="market-description">Description (Optional)</Label>
                   <Textarea
                     id="market-description"
                     placeholder="Additional context..."
@@ -691,9 +629,7 @@ export default function AdminDashboard() {
                     id="deadline"
                     type="datetime-local"
                     value={newMarket.deadline}
-                    onChange={(e) =>
-                      setNewMarket({ ...newMarket, deadline: e.target.value })
-                    }
+                    onChange={(e) => setNewMarket({ ...newMarket, deadline: e.target.value })}
                     className="mt-1"
                   />
                 </div>
@@ -703,9 +639,7 @@ export default function AdminDashboard() {
                     id="tags"
                     placeholder="economics, politics, technology"
                     value={newMarket.tags}
-                    onChange={(e) =>
-                      setNewMarket({ ...newMarket, tags: e.target.value })
-                    }
+                    onChange={(e) => setNewMarket({ ...newMarket, tags: e.target.value })}
                     className="mt-1"
                   />
                 </div>
@@ -717,10 +651,92 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
 
-          <Dialog
-            open={isEditMarketDialogOpen}
-            onOpenChange={setIsEditMarketDialogOpen}
-          >
+          {/* Market Resolution Dialog */}
+          <Dialog open={isResolutionDialogOpen} onOpenChange={setIsResolutionDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center">
+                  <Gavel className="w-5 h-5 mr-2" />
+                  Resolve Market
+                </DialogTitle>
+                <DialogDescription>
+                  Set the final outcome for: <strong>{selectedMarket?.title}</strong>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Final Outcome</Label>
+                  <div className="flex space-x-2 mt-2">
+                    <Button
+                      variant={resolutionOutcome === "YES" ? "default" : "outline"}
+                      onClick={() => setResolutionOutcome("YES")}
+                      className="flex-1"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      YES
+                    </Button>
+                    <Button
+                      variant={resolutionOutcome === "NO" ? "default" : "outline"}
+                      onClick={() => setResolutionOutcome("NO")}
+                      className="flex-1"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      NO
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="resolution-notes">Resolution Notes (Optional)</Label>
+                  <Textarea
+                    id="resolution-notes"
+                    placeholder="Explain the reasoning for this resolution..."
+                    value={resolutionNotes}
+                    onChange={(e) => setResolutionNotes(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                {resolutionOutcome && (
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <DollarSign className="h-4 w-4" />
+                    <AlertDescription className="text-blue-800">
+                      <strong>Payout Preview:</strong> All {resolutionOutcome} shareholders will receive 100 points per
+                      share. Payout emails will be sent automatically.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsResolutionDialogOpen(false)
+                      setResolutionOutcome("")
+                      setResolutionNotes("")
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={resolveMarket} disabled={!resolutionOutcome || isResolving}>
+                    {isResolving ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Resolving...
+                      </>
+                    ) : (
+                      <>
+                        <Gavel className="w-4 h-4 mr-2" />
+                        Resolve Market
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isEditMarketDialogOpen} onOpenChange={setIsEditMarketDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Edit Market</DialogTitle>
@@ -748,13 +764,7 @@ export default function AdminDashboard() {
                 />
                 <Input
                   type="datetime-local"
-                  value={
-                    editedMarket?.deadline
-                      ? new Date(editedMarket.deadline)
-                          .toISOString()
-                          .slice(0, 16)
-                      : ""
-                  }
+                  value={editedMarket?.deadline ? new Date(editedMarket.deadline).toISOString().slice(0, 16) : ""}
                   onChange={(e) =>
                     setEditedMarket((prev) => ({
                       ...prev!,
@@ -763,22 +773,16 @@ export default function AdminDashboard() {
                   }
                 />
                 <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditMarketDialogOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setIsEditMarketDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button
                     onClick={async () => {
                       if (editedMarket?._id) {
-                        await marketsAPI.updateMarket(
-                          editedMarket._id,
-                          editedMarket
-                        );
-                        setSuccess("Market updated!");
-                        setIsEditMarketDialogOpen(false);
-                        loadDashboardData(); // Refresh data
+                        await marketsAPI.updateMarket(editedMarket._id, editedMarket)
+                        setSuccess("Market updated!")
+                        setIsEditMarketDialogOpen(false)
+                        loadDashboardData()
                       }
                     }}
                   >
@@ -789,34 +793,23 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
 
-          <Dialog
-            open={isCustomEmailDialogOpen}
-            onOpenChange={setIsCustomEmailDialogOpen}
-          >
+          <Dialog open={isCustomEmailDialogOpen} onOpenChange={setIsCustomEmailDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Send Custom Email</DialogTitle>
                 <DialogDescription>
-                  Send a direct message to{" "}
-                  <strong>{selectedUser?.email}</strong>
+                  Send a direct message to <strong>{selectedUser?.email}</strong>
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
-                <Input
-                  placeholder="Subject"
-                  value={customSubject}
-                  onChange={(e) => setCustomSubject(e.target.value)}
-                />
+                <Input placeholder="Subject" value={customSubject} onChange={(e) => setCustomSubject(e.target.value)} />
                 <Textarea
                   placeholder="Message (HTML)"
                   value={customHtml}
                   onChange={(e) => setCustomHtml(e.target.value)}
                 />
                 <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCustomEmailDialogOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setIsCustomEmailDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button
@@ -826,10 +819,10 @@ export default function AdminDashboard() {
                           userIds: [selectedUser._id],
                           subject: customSubject,
                           htmlContent: customHtml,
-                          textContent: customHtml.replace(/<[^>]+>/g, ""), // Plain text fallback
-                        });
-                        setSuccess("Email sent!");
-                        setIsCustomEmailDialogOpen(false);
+                          textContent: customHtml.replace(/<[^>]+>/g, ""),
+                        })
+                        setSuccess("Email sent!")
+                        setIsCustomEmailDialogOpen(false)
                       }
                     }}
                   >
@@ -840,10 +833,7 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
 
-          <Dialog
-            open={isEditUserDialogOpen}
-            onOpenChange={setIsEditUserDialogOpen}
-          >
+          <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
             <DialogContent className="sm:max-w-sm">
               <DialogHeader>
                 <DialogTitle>Edit User Points</DialogTitle>
@@ -860,22 +850,18 @@ export default function AdminDashboard() {
                   onChange={(e) => setEditedPoints(Number(e.target.value))}
                 />
                 <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditUserDialogOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setIsEditUserDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button
                     onClick={async () => {
-                      if (!editedUser) return;
-                      console.log("Updating user with ID:", editedUser._id); // DEBUG
+                      if (!editedUser) return
                       await usersAPI.updateUser(editedUser._id, {
                         points: editedPoints,
-                      });
-                      setSuccess("User points updated");
-                      setIsEditUserDialogOpen(false);
-                      loadDashboardData();
+                      })
+                      setSuccess("User points updated")
+                      setIsEditUserDialogOpen(false)
+                      loadDashboardData()
                     }}
                   >
                     Save
@@ -895,31 +881,26 @@ export default function AdminDashboard() {
                   <Database className="w-5 h-5 mr-2" />
                   Market Management
                 </CardTitle>
-                <CardDescription>
-                  Manage active prediction markets
-                </CardDescription>
+                <CardDescription>Manage prediction markets and resolve outcomes</CardDescription>
               </div>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <Label
-                    htmlFor="market-select"
-                    className="text-sm font-medium"
-                  >
+                  <Label htmlFor="market-select" className="text-sm font-medium">
                     Select Market:
                   </Label>
-                  <Select
-                    value={selectedMarketId}
-                    onValueChange={setSelectedMarketId}
-                  >
+                  <Select value={selectedMarketId} onValueChange={setSelectedMarketId}>
                     <SelectTrigger className="w-[300px]">
                       <SelectValue placeholder="Choose a market" />
                     </SelectTrigger>
                     <SelectContent>
                       {markets.map((market) => (
                         <SelectItem key={market._id} value={market._id}>
-                          {market.title.length > 50
-                            ? `${market.title.substring(0, 50)}...`
-                            : market.title}
+                          <div className="flex items-center space-x-2">
+                            {getMarketStatusBadge(market)}
+                            <span>
+                              {market.title.length > 40 ? `${market.title.substring(0, 40)}...` : market.title}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -934,63 +915,82 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Market Info */}
                   <div>
-                    <h3 className="font-semibold text-lg mb-4">
-                      {selectedMarket.title}
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-lg">{selectedMarket.title}</h3>
+                      {getMarketStatusBadge(selectedMarket)}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <Label className="text-sm text-gray-600">
-                          Current Probability
-                        </Label>
-                        <div className="text-2xl font-bold text-indigo-600">
-                          {selectedMarket.currentProbability}%
-                        </div>
+                        <Label className="text-sm text-gray-600">Current Probability</Label>
+                        <div className="text-2xl font-bold text-indigo-600">{selectedMarket.currentProbability}%</div>
                       </div>
                       <div>
-                        <Label className="text-sm text-gray-600">
-                          Total Volume
-                        </Label>
-                        <div className="text-lg font-semibold">
-                          {selectedMarket.totalVolume}
-                        </div>
+                        <Label className="text-sm text-gray-600">Total Volume</Label>
+                        <div className="text-lg font-semibold">{selectedMarket.totalVolume}</div>
                       </div>
                       <div>
-                        <Label className="text-sm text-gray-600">
-                          Participants
-                        </Label>
-                        <div className="text-lg font-semibold">
-                          {selectedMarket.participantCount}
-                        </div>
+                        <Label className="text-sm text-gray-600">Participants</Label>
+                        <div className="text-lg font-semibold">{selectedMarket.participantCount}</div>
                       </div>
                       <div>
-                        <Label className="text-sm text-gray-600">
-                          Deadline
-                        </Label>
+                        <Label className="text-sm text-gray-600">Deadline</Label>
                         <div className="text-lg font-semibold">
-                          {new Date(
-                            selectedMarket.deadline
-                          ).toLocaleDateString()}
+                          {new Date(selectedMarket.deadline).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
+
+                    {/* Resolution Info */}
+                    {selectedMarket.status === "resolved" && selectedMarket.resolution && (
+                      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">Resolution</h4>
+                        <div className="space-y-1 text-sm">
+                          <div>
+                            <strong>Outcome:</strong> {selectedMarket.resolution.outcome ? "YES" : "NO"}
+                          </div>
+                          <div>
+                            <strong>Resolved:</strong> {new Date(selectedMarket.resolution.resolvedAt).toLocaleString()}
+                          </div>
+                          {selectedMarket.resolution.notes && (
+                            <div>
+                              <strong>Notes:</strong> {selectedMarket.resolution.notes}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setEditedMarket(selectedMarket);
-                          setIsEditMarketDialogOpen(true);
+                          setEditedMarket(selectedMarket)
+                          setIsEditMarketDialogOpen(true)
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
                       </Button>
 
+                      {selectedMarket.status === "closed" && (
+                        <Button
+                          size="sm"
+                          onClick={() => setIsResolutionDialogOpen(true)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Gavel className="w-4 h-4 mr-2" />
+                          Resolve Market
+                        </Button>
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-red-600"
+                        className="text-red-600 bg-transparent"
                         onClick={() => deleteMarket(selectedMarket._id)}
+                        disabled={selectedMarket.status === "resolved"}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete
@@ -1000,19 +1000,14 @@ export default function AdminDashboard() {
 
                   {/* Probability History Graph */}
                   <div className="min-w-0">
-                    <Label className="text-sm text-gray-600 mb-2 block">
-                      Probability History
-                    </Label>
+                    <Label className="text-sm text-gray-600 mb-2 block">Probability History</Label>
                     <div className="w-full h-[250px] border rounded-lg p-4 bg-white">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                           data={selectedMarket.probabilityHistory}
                           margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
                         >
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="#e0e0e0"
-                          />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                           <XAxis
                             dataKey="date"
                             tickFormatter={(value) =>
@@ -1024,24 +1019,18 @@ export default function AdminDashboard() {
                             fontSize={12}
                             stroke="#666"
                           />
-                          <YAxis
-                            domain={[0, 100]}
-                            fontSize={12}
-                            stroke="#666"
-                          />
+                          <YAxis domain={[0, 100]} fontSize={12} stroke="#666" />
                           <ChartTooltip
                             content={({ active, payload, label }) => {
                               if (active && payload && payload.length) {
                                 return (
                                   <div className="bg-white p-2 border rounded shadow">
-                                    <p className="text-sm">{`Date: ${new Date(
-                                      label
-                                    ).toLocaleDateString()}`}</p>
+                                    <p className="text-sm">{`Date: ${new Date(label).toLocaleDateString()}`}</p>
                                     <p className="text-sm font-semibold text-indigo-600">{`Probability: ${payload[0].value}%`}</p>
                                   </div>
-                                );
+                                )
                               }
-                              return null;
+                              return null
                             }}
                           />
                           <Line
@@ -1078,9 +1067,7 @@ export default function AdminDashboard() {
               <Activity className="w-5 h-5 mr-2" />
               Transaction Monitoring
             </CardTitle>
-            <CardDescription>
-              Track all participant trading activity
-            </CardDescription>
+            <CardDescription>Track all participant trading activity</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -1138,30 +1125,18 @@ export default function AdminDashboard() {
                   <TableRow key={tx._id}>
                     <TableCell>{tx.user.email}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={tx.type === "BUY" ? "default" : "secondary"}
-                      >
+                      <Badge variant={tx.type === "BUY" ? "default" : "secondary"}>
                         {tx.type} {tx.amount}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {tx.market.title}
-                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{tx.market.title}</TableCell>
                     <TableCell>
-                      <span
-                        className={
-                          tx.pointsChange > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
+                      <span className={tx.pointsChange > 0 ? "text-green-600" : "text-red-600"}>
                         {tx.pointsChange > 0 ? "+" : ""}
                         {tx.pointsChange}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      {new Date(tx.createdAt).toLocaleString()}
-                    </TableCell>
+                    <TableCell>{new Date(tx.createdAt).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1176,9 +1151,7 @@ export default function AdminDashboard() {
               <Users className="w-5 h-5 mr-2" />
               User Database
             </CardTitle>
-            <CardDescription>
-              Manage participant accounts and balances
-            </CardDescription>
+            <CardDescription>Manage participant accounts and balances</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -1244,9 +1217,6 @@ export default function AdminDashboard() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{user.email}</div>
-                        {/* <div className="text-sm text-gray-600">
-                          {user.email}
-                        </div> */}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1254,18 +1224,16 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell>{user.stats.accuracy}%</TableCell>
                     <TableCell>{user.stats.totalPredictions}</TableCell>
-                    <TableCell>
-                      {new Date(user.lastActive).toLocaleDateString()}
-                    </TableCell>
+                    <TableCell>{new Date(user.lastActive).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setEditedUser(user);
-                            setEditedPoints(user.points); // prefill with current value
-                            setIsEditUserDialogOpen(true);
+                            setEditedUser(user)
+                            setEditedPoints(user.points)
+                            setIsEditUserDialogOpen(true)
                           }}
                         >
                           <Edit className="w-4 h-4" />
@@ -1274,8 +1242,8 @@ export default function AdminDashboard() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            setSelectedUser(user);
-                            setIsCustomEmailDialogOpen(true);
+                            setSelectedUser(user)
+                            setIsCustomEmailDialogOpen(true)
                           }}
                         >
                           <Mail className="w-4 h-4" />
@@ -1290,5 +1258,5 @@ export default function AdminDashboard() {
         </Card>
       </div>
     </div>
-  );
+  )
 }

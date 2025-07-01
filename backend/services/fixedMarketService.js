@@ -20,9 +20,12 @@ async function buyFixedShares(userId, marketId, side, amount) {
   const user = await User.findById(userId);
   if (!user || user.points < amount) throw new Error("Insufficient balance");
 
-  const price = side === "YES" ? market.fixedYesPrice : market.fixedNoPrice;
-  const shares = Math.floor((amount / price) * 100) / 100; // round to 2 decimals
-  const cost = Math.ceil(price * shares * 100) / 100;
+  // Fix the price calculation - convert decimal to points
+  const priceDecimal =
+    side === "YES" ? market.fixedYesPrice : market.fixedNoPrice;
+  const priceInPoints = priceDecimal * 100; // Convert 0.5 to 50 points
+  const shares = Math.floor((amount / priceInPoints) * 100) / 100;
+  const cost = Math.ceil(priceInPoints * shares * 100) / 100;
 
   user.points -= cost;
   await user.save();
@@ -35,6 +38,9 @@ async function buyFixedShares(userId, marketId, side, amount) {
       sharesYes: 0,
       sharesNo: 0,
     });
+
+    // Increase participant count for new users only
+    market.participantCount = (market.participantCount || 0) + 1;
   }
 
   if (side === "YES") position.sharesYes += shares;
@@ -42,7 +48,22 @@ async function buyFixedShares(userId, marketId, side, amount) {
 
   await position.save();
 
+  // Update volume tracking by side - ensure proper initialization
+  if (!market.yesVolume) market.yesVolume = 0;
+  if (!market.noVolume) market.noVolume = 0;
+  if (!market.totalVolume) market.totalVolume = 0;
+
+  // Add the cost to the appropriate volume
   market.totalVolume += cost;
+  if (side === "YES") {
+    market.yesVolume += cost;
+  } else {
+    market.noVolume += cost;
+  }
+
+  console.log(
+    `📊 Volume updated - YES: ${market.yesVolume}, NO: ${market.noVolume}, Total: ${market.totalVolume}`
+  );
 
   // Track probability history
   const currentProbability = Math.round(market.fixedYesPrice * 100);
@@ -60,23 +81,61 @@ async function buyFixedShares(userId, marketId, side, amount) {
     side,
     newBalance: user.points,
     probability: currentProbability,
+    volumeStats: getVolumeStats(market),
   };
 }
 
 /**
  * Calculate shares that can be bought with given budget
  * @param {number} budget - Points to spend
- * @param {number} price - Price per share (0-1)
+ * @param {number} priceDecimal - Price per share (0-1)
  * @returns {object} - Calculation result
  */
-function calculateSharesForBudget(budget, price) {
-  const shares = Math.floor((budget / price) * 100) / 100;
-  const cost = Math.ceil(price * shares * 100) / 100;
+function calculateSharesForBudget(budget, priceDecimal) {
+  const priceInPoints = priceDecimal * 100; // Convert decimal to points
+  const shares = Math.floor((budget / priceInPoints) * 100) / 100;
+  const cost = Math.ceil(priceInPoints * shares * 100) / 100;
 
   return {
     shares,
     cost,
-    newPrice: price, // Fixed odds don't change
+    newPrice: priceDecimal, // Keep as decimal for probability display
+  };
+}
+
+/**
+ * Get volume statistics
+ * @param {object} market - Market object
+ * @returns {object} - Volume stats
+ */
+function getVolumeStats(market) {
+  const yesVolume = market.yesVolume || 0;
+  const noVolume = market.noVolume || 0;
+  const totalVolume = yesVolume + noVolume;
+
+  console.log(
+    `📊 getVolumeStats - YES: ${yesVolume}, NO: ${noVolume}, Total: ${totalVolume}`
+  );
+
+  if (totalVolume === 0) {
+    return {
+      yesVolume: 0,
+      noVolume: 0,
+      yesPercentage: 50,
+      noPercentage: 50,
+      totalVolume: 0,
+    };
+  }
+
+  const yesPercentage = Math.round((yesVolume / totalVolume) * 100);
+  const noPercentage = Math.round((noVolume / totalVolume) * 100);
+
+  return {
+    yesVolume,
+    noVolume,
+    yesPercentage,
+    noPercentage,
+    totalVolume,
   };
 }
 
@@ -86,6 +145,8 @@ function calculateSharesForBudget(budget, price) {
  * @returns {object} - Market stats
  */
 function getMarketStats(market) {
+  const volumeStats = getVolumeStats(market);
+
   return {
     yesPrice: market.fixedYesPrice,
     noPrice: market.fixedNoPrice,
@@ -93,6 +154,7 @@ function getMarketStats(market) {
     noProbability: Math.round(market.fixedNoPrice * 100),
     totalVolume: market.totalVolume,
     participantCount: market.participantCount,
+    volumeStats,
   };
 }
 
@@ -100,4 +162,5 @@ module.exports = {
   buyFixedShares,
   calculateSharesForBudget,
   getMarketStats,
+  getVolumeStats,
 };

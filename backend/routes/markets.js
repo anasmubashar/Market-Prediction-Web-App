@@ -44,6 +44,7 @@ router.put(
 
 router.post("/:id/resolve", [body("outcome").isBoolean()], marketController.resolveMarket)
 
+
 router.delete("/:id", marketController.deleteMarket)
 
 module.exports = router
