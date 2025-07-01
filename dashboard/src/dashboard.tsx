@@ -1193,12 +1193,12 @@ export default function AdminDashboard() {
                                       <p className="text-sm">{`Date: ${new Date(
                                         label
                                       ).toLocaleDateString()}`}</p>
-                                      <p className="text-sm font-semibold text-green-600">{`YES Volume: ${payload[0]?.value?.toFixed(
-                                        1
-                                      )}%`}</p>
-                                      <p className="text-sm font-semibold text-red-600">{`NO Volume: ${payload[1]?.value?.toFixed(
-                                        1
-                                      )}%`}</p>
+                                      <p className="text-sm font-semibold text-green-600">{`YES Volume: ${Number(
+                                        payload[0]?.value
+                                      ).toFixed(1)}%`}</p>
+                                      <p className="text-sm font-semibold text-red-600">{`NO Volume: ${Number(
+                                        payload[1]?.value
+                                      ).toFixed(1)}%`}</p>
                                     </div>
                                   );
                                 }
