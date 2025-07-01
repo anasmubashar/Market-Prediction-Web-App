@@ -188,12 +188,7 @@ class EmailService {
 <h3 style="margin: 0 0 8px 0; color: #1f2937;">${market.title}</h3>
 
 <div style="display: flex; align-items: center; width: 100%;">
-  <div style="min-width: 120px; margin-right: 16px; margin-bottom: 8px;">
-    <span style="font-size: 24px; font-weight: bold; color: #4f46e5;">
-      ${market.currentProbability}%
-    </span>
-    <span style="color: #6b7280; margin-left: 4px;">probability</span>
-  </div>
+  
   
   <div style="text-align: right; color: #6b7280; font-size: 14px; margin-left: auto;">
     <div>Volume: ${market.totalVolume}</div>
@@ -243,11 +238,17 @@ Deadline: ${new Date(market.deadline).toLocaleDateString()}
 <h3 style="margin-top: 0;">🎯 How Fixed-Odds Betting Works</h3>
 <p>Our prediction markets work like sports betting - you can only <strong>BUY</strong> shares:</p>
 
-<ul style="list-style-type: none; padding-left: 0;">
-  <li><strong>BUY 50 YES</strong> – Spend 50 points on YES shares</li>
-  <li><strong>BUY 50 NO</strong> – Spend 50 points on NO shares</li>
-  <li><strong>BUY 100</strong> – Spend 100 points (defaults to YES)</li>
-</ul>
+<h4 style="margin: 16px 0 8px 0;">📝 Format:</h4>
+  <ul style="list-style-type: none; padding-left: 0;">
+    <li><strong>BUY [amount] [market hint] [YES|NO]</strong></li>
+  </ul>
+
+  <h4 style="margin: 16px 0 8px 0;">💡 Examples:</h4>
+  <ul style="list-style-type: disc; padding-left: 20px;">
+    <li><strong>BUY 50 Inflation NO</strong> – Spend 50 points to bet against Inflation happening</li>
+    <li><strong>BUY 100 Recession YES</strong> – Spend 100 points to bet that Recession will happen</li>
+    <li><strong>BUY 75 Election</strong> – Defaults to YES shares for the "Election" market</li>
+  </ul>
 
 <p style="color: #065f46; margin: 12px 0 4px 0;">✅ Each share pays out <strong>100 points</strong> if you're right</p>
 <p style="color: #065f46; margin: 0 0 12px 0;">✅ Prices are fixed when you buy (no changes)</p>

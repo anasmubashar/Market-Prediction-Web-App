@@ -145,30 +145,41 @@ marketSchema.pre("save", function (next) {
   next();
 });
 
-// Add volume tracking when volume changes
+// Add volume tracking when volume changes - FIXED VERSION
 marketSchema.pre("save", function (next) {
   if (this.isModified("yesVolume") || this.isModified("noVolume")) {
-    const totalVol = this.yesVolume + this.noVolume;
+    const totalVol = (this.yesVolume || 0) + (this.noVolume || 0);
     const yesPercentage =
-      totalVol > 0 ? Math.round((this.yesVolume / totalVol) * 100) : 50;
+      totalVol > 0 ? Math.round(((this.yesVolume || 0) / totalVol) * 100) : 50;
     const noPercentage =
-      totalVol > 0 ? Math.round((this.noVolume / totalVol) * 100) : 50;
+      totalVol > 0 ? Math.round(((this.noVolume || 0) / totalVol) * 100) : 50;
 
-    this.volumeHistory.push({
-      date: new Date(),
-      yesVolume: this.yesVolume,
-      noVolume: this.noVolume,
-      yesPercentage,
-      noPercentage,
-    });
-  }
-  next();
-});
+    console.log(
+      `📊 Market pre-save volume update - YES: ${this.yesVolume}, NO: ${this.noVolume}, Total: ${totalVol}`
+    );
+    console.log(
+      `📊 Calculated percentages - YES: ${yesPercentage}%, NO: ${noPercentage}%`
+    );
 
-// Update currentProbability based on fixedYesPrice
-marketSchema.pre("save", function (next) {
-  if (this.isModified("fixedYesPrice")) {
-    this.currentProbability = Math.round(this.fixedYesPrice * 100);
+    // Update current probability to match volume percentage
+    this.currentProbability = yesPercentage;
+
+    // Only add to history if this is a real change (not just initialization)
+    if (totalVol > 0) {
+      this.volumeHistory.push({
+        date: new Date(),
+        yesVolume: this.yesVolume || 0,
+        noVolume: this.noVolume || 0,
+        yesPercentage,
+        noPercentage,
+      });
+
+      // Also update probability history to match
+      this.probabilityHistory.push({
+        date: new Date(),
+        probability: yesPercentage,
+      });
+    }
   }
   next();
 });

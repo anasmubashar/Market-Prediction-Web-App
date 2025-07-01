@@ -45,7 +45,7 @@ exports.getTransactions = async (req, res) => {
   }
 };
 
-// Create new transaction with fixed-odds pricing (BUY only)
+// Create new transaction with fixed-odds pricing (BUY only) - FIXED PARTICIPANT COUNT
 exports.createTransaction = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -83,28 +83,26 @@ exports.createTransaction = async (req, res) => {
       return res.status(400).json({ message: "Market deadline has passed" });
     }
 
-    // Get or create user position
-    let position = await Position.findOne({ user: user._id, market: marketId });
-    if (!position) {
-      position = new Position({
-        user: user._id,
-        market: marketId,
-        sharesYes: 0,
-        sharesNo: 0,
-        totalInvested: 0,
-      });
+    console.log(
+      `🔄 Processing transaction for ${userEmail} in market "${market.title}"`
+    );
+    console.log(
+      `📊 Market before transaction - Participants: ${market.participantCount}, Volume: ${market.totalVolume}`
+    );
 
-      // Increase participant count for new users only
-      market.participantCount = (market.participantCount || 0) + 1;
-    }
-
-    // Use fixed-odds service for buying
+    // Use fixed-odds service for buying (this handles participant counting)
     const transactionResult = await FixedMarketService.buyFixedShares(
       user._id,
       marketId,
       outcome,
       amount
     );
+
+    console.log(`✅ Transaction result:`, {
+      shares: transactionResult.shares,
+      cost: transactionResult.cost,
+      isNewParticipant: transactionResult.isNewParticipant,
+    });
 
     // Create transaction record
     const transaction = new Transaction({
@@ -123,12 +121,17 @@ exports.createTransaction = async (req, res) => {
     user.lastActive = new Date();
 
     // Save all changes
-    await Promise.all([transaction.save(), market.save(), user.save()]);
+    await Promise.all([transaction.save(), user.save()]);
 
     await transaction.populate(["user", "market"]);
 
-    // Get updated market stats
-    const marketStats = FixedMarketService.getMarketStats(market);
+    // Get updated market stats (this will include the updated participant count)
+    const updatedMarket = await Market.findById(marketId);
+    const marketStats = FixedMarketService.getMarketStats(updatedMarket);
+
+    console.log(
+      `📊 Market after transaction - Participants: ${updatedMarket.participantCount}, Volume: ${updatedMarket.totalVolume}`
+    );
 
     // Get updated position
     const updatedPosition = await Position.findOne({
@@ -150,6 +153,7 @@ exports.createTransaction = async (req, res) => {
         cost: transactionResult.cost,
         newPrice: transactionResult.probability,
         outcome,
+        isNewParticipant: transactionResult.isNewParticipant,
       },
     });
   } catch (error) {

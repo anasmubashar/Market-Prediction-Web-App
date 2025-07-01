@@ -30,23 +30,39 @@ async function buyFixedShares(userId, marketId, side, amount) {
   user.points -= cost;
   await user.save();
 
+  // Check if user already has a position in this market
   let position = await Position.findOne({ user: userId, market: marketId });
+  let isNewParticipant = false;
+
   if (!position) {
+    // This is a new participant - create position and increment count
     position = new Position({
       user: userId,
       market: marketId,
       sharesYes: 0,
       sharesNo: 0,
+      totalInvested: 0,
     });
-
-    // Increase participant count for new users only
-    market.participantCount = (market.participantCount || 0) + 1;
+    isNewParticipant = true;
+    console.log(
+      `👤 New participant detected for market ${marketId}: ${user.email}`
+    );
   }
 
+  // Update position
   if (side === "YES") position.sharesYes += shares;
   else position.sharesNo += shares;
 
+  position.totalInvested += cost;
   await position.save();
+
+  // Update market participant count ONLY for new participants
+  if (isNewParticipant) {
+    market.participantCount = (market.participantCount || 0) + 1;
+    console.log(
+      `👤 Participant count updated: ${market.participantCount} for market "${market.title}"`
+    );
+  }
 
   // Update volume tracking by side - ensure proper initialization
   if (!market.yesVolume) market.yesVolume = 0;
@@ -65,23 +81,50 @@ async function buyFixedShares(userId, marketId, side, amount) {
     `📊 Volume updated - YES: ${market.yesVolume}, NO: ${market.noVolume}, Total: ${market.totalVolume}`
   );
 
-  // Track probability history
-  const currentProbability = Math.round(market.fixedYesPrice * 100);
+  // Calculate and update current probability based on volume
+  const yesPercentage =
+    market.totalVolume > 0
+      ? Math.round((market.yesVolume / market.totalVolume) * 100)
+      : 50;
+  market.currentProbability = yesPercentage;
+
+  // Track probability history with volume-based percentage
   if (!market.probabilityHistory) market.probabilityHistory = [];
   market.probabilityHistory.push({
     date: new Date(),
-    probability: currentProbability,
+    probability: yesPercentage,
+  });
+
+  // Update volume history with correct percentages
+  const noPercentage =
+    market.totalVolume > 0
+      ? Math.round((market.noVolume / market.totalVolume) * 100)
+      : 50;
+
+  if (!market.volumeHistory) market.volumeHistory = [];
+  market.volumeHistory.push({
+    date: new Date(),
+    yesVolume: market.yesVolume,
+    noVolume: market.noVolume,
+    yesPercentage,
+    noPercentage,
   });
 
   await market.save();
+
+  console.log(
+    `📊 Updated percentages - YES: ${yesPercentage}%, NO: ${noPercentage}%`
+  );
+  console.log(`👤 Final participant count: ${market.participantCount}`);
 
   return {
     shares,
     cost,
     side,
     newBalance: user.points,
-    probability: currentProbability,
+    probability: yesPercentage,
     volumeStats: getVolumeStats(market),
+    isNewParticipant, // Include this for debugging
   };
 }
 
@@ -104,7 +147,7 @@ function calculateSharesForBudget(budget, priceDecimal) {
 }
 
 /**
- * Get volume statistics
+ * Get volume statistics - FIXED VERSION
  * @param {object} market - Market object
  * @returns {object} - Volume stats
  */
@@ -127,8 +170,13 @@ function getVolumeStats(market) {
     };
   }
 
+  // Use consistent rounding
   const yesPercentage = Math.round((yesVolume / totalVolume) * 100);
   const noPercentage = Math.round((noVolume / totalVolume) * 100);
+
+  console.log(
+    `📊 Calculated percentages - YES: ${yesPercentage}%, NO: ${noPercentage}%`
+  );
 
   return {
     yesVolume,
@@ -140,22 +188,51 @@ function getVolumeStats(market) {
 }
 
 /**
- * Get market statistics
+ * Get market statistics - FIXED VERSION
  * @param {object} market - Market object
  * @returns {object} - Market stats
  */
 function getMarketStats(market) {
   const volumeStats = getVolumeStats(market);
 
+  // Calculate current probability based on volume
+  const currentProbability = volumeStats.yesPercentage;
+
   return {
     yesPrice: market.fixedYesPrice,
     noPrice: market.fixedNoPrice,
-    yesProbability: Math.round(market.fixedYesPrice * 100),
-    noProbability: Math.round(market.fixedNoPrice * 100),
+    yesProbability: currentProbability,
+    noProbability: 100 - currentProbability,
     totalVolume: market.totalVolume,
-    participantCount: market.participantCount,
+    participantCount: market.participantCount || 0, // Ensure we return a number
     volumeStats,
+    currentProbability, // Add this for consistency
   };
+}
+
+/**
+ * Recalculate participant count for a market (utility function for fixing existing data)
+ * @param {string} marketId - Market ID
+ * @returns {number} - Actual participant count
+ */
+async function recalculateParticipantCount(marketId) {
+  try {
+    const actualCount = await Position.countDocuments({ market: marketId });
+
+    const market = await Market.findById(marketId);
+    if (market) {
+      market.participantCount = actualCount;
+      await market.save();
+      console.log(
+        `🔧 Recalculated participant count for "${market.title}": ${actualCount}`
+      );
+    }
+
+    return actualCount;
+  } catch (error) {
+    console.error("Error recalculating participant count:", error);
+    return 0;
+  }
 }
 
 module.exports = {
@@ -163,4 +240,5 @@ module.exports = {
   calculateSharesForBudget,
   getMarketStats,
   getVolumeStats,
+  recalculateParticipantCount,
 };

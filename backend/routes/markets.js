@@ -1,19 +1,23 @@
-const express = require("express")
-const { body, query } = require("express-validator")
-const marketController = require("../controllers/marketController")
+const express = require("express");
+const { body, query } = require("express-validator");
+const marketController = require("../controllers/marketController");
 
-const router = express.Router()
+const router = express.Router();
 
 // Public routes
-router.get("/", marketController.getMarkets)
-router.get("/:id", marketController.getMarket)
+router.get("/", marketController.getMarkets);
+router.get("/:id", marketController.getMarket);
 
 // Get pricing info for potential trade
 router.get(
   "/:id/pricing",
-  [query("amount").isNumeric(), query("type").isIn(["BUY", "SELL"]), query("outcome").optional().isIn(["YES", "NO"])],
-  marketController.getMarketPricing,
-)
+  [
+    query("amount").isNumeric(),
+    query("type").isIn(["BUY", "SELL"]),
+    query("outcome").optional().isIn(["YES", "NO"]),
+  ],
+  marketController.getMarketPricing
+);
 
 // Admin routes
 router.post(
@@ -26,8 +30,12 @@ router.post(
       .isNumeric()
       .custom((value) => value > 0),
   ],
-  marketController.createMarket,
-)
+  marketController.createMarket
+);
+
+router.get("/:id/volume-chart", marketController.getVolumeChartData);
+
+router.post("/fix-participant-counts", marketController.fixParticipantCounts);
 
 router.put(
   "/:id",
@@ -39,12 +47,15 @@ router.put(
       .isNumeric()
       .custom((value) => value > 0),
   ],
-  marketController.updateMarket,
-)
+  marketController.updateMarket
+);
 
-router.post("/:id/resolve", [body("outcome").isBoolean()], marketController.resolveMarket)
+router.post(
+  "/:id/resolve",
+  [body("outcome").isBoolean()],
+  marketController.resolveMarket
+);
 
+router.delete("/:id", marketController.deleteMarket);
 
-router.delete("/:id", marketController.deleteMarket)
-
-module.exports = router
+module.exports = router;
