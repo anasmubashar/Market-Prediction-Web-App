@@ -296,18 +296,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const closeExpiredMarkets = async () => {
-    try {
-      setError("")
-      const result = await marketsAPI.closeExpiredMarkets()
-      setSuccess(`Closed ${result.closedCount} expired markets`)
-
-      // Refresh markets
-      await loadDashboardData()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to close expired markets")
-    }
-  }
+  
 
   if (isLoading) {
     return (
