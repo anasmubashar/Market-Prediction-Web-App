@@ -289,17 +289,12 @@ class ImapService {
           }
         }
 
-        // 🔧 FIX: Increase the limit from 1000 to 10000 to allow larger trades
-        if (amount >= 1 && amount <= 10000) {
-          commands.push({
-            action: "BUY",
-            amount,
-            marketHint,
-            side,
-          });
-        } else {
-          console.log(`📧 Amount ${amount} is outside allowed range (1-10000)`);
-        }
+        commands.push({
+          action: "BUY",
+          amount,
+          marketHint,
+          side,
+        });
       }
     }
 
