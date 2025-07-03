@@ -40,6 +40,7 @@ class EmailService {
               <li>Use "BUY [amount]" to spend points on shares</li>
               <li>Use "SELL [shares]" to sell your shares</li>
               <li>Example: "BUY 50" or "SELL 25 YES"</li>
+              <li>You can now trade up to 10,000 points per transaction!</li>
             </ul>
 
             <p>You'll receive your first prediction market email soon!</p>
@@ -60,6 +61,7 @@ class EmailService {
           - Reply to emails with BUY [amount] to spend points on shares
           - Reply with SELL [shares] to sell your shares
           - Example: BUY 50 or SELL 25 YES
+          - You can now trade up to 10,000 points per transaction!
           
           You'll receive your first market email soon!
         `,
@@ -247,12 +249,14 @@ Deadline: ${new Date(market.deadline).toLocaleDateString()}
   <ul style="list-style-type: disc; padding-left: 20px;">
     <li><strong>BUY 50 Inflation NO</strong> – Spend 50 points to bet against Inflation happening</li>
     <li><strong>BUY 100 Recession YES</strong> – Spend 100 points to bet that Recession will happen</li>
+    <li><strong>BUY 2000 Election YES</strong> – Spend 2000 points on Election YES shares</li>
     <li><strong>BUY 75 Election</strong> – Defaults to YES shares for the "Election" market</li>
   </ul>
 
 <p style="color: #065f46; margin: 12px 0 4px 0;">✅ Each share pays out <strong>100 points</strong> if you're right</p>
 <p style="color: #065f46; margin: 0 0 12px 0;">✅ Prices are fixed when you buy (no changes)</p>
 <p style="color: #065f46; margin: 0 0 12px 0;">✅ You cannot sell shares - only buy and hold until resolution</p>
+<p style="color: #065f46; margin: 0 0 12px 0;">✅ You can now trade up to <strong>10,000 points</strong> per transaction!</p>
 
 <h4 style="margin: 16px 0 8px 0;">💡 Example</h4>
 <p>If YES shares cost 60 points each and you spend 120 points, you get 2 shares. If the market resolves YES, you get 200 points (2 × 100). Your profit is 80 points!</p>
@@ -272,8 +276,9 @@ How Fixed-Odds Betting Works:
 - BUY [amount] YES or BUY [amount] NO
 - Each share pays 100 points if you're right
 - Prices are fixed when you trade
+- You can now trade up to 10,000 points per transaction!
 
-Example: BUY 50 YES, BUY 100 NO
+Example: BUY 50 YES, BUY 100 NO, BUY 2000 YES
 
 Academic Psychology Research Study
 Reply "UNSUBSCRIBE" to opt out
@@ -282,7 +287,7 @@ Reply "UNSUBSCRIBE" to opt out
     return { subject, htmlContent, textContent, attachments };
   }
 
-  // Send transaction confirmation email
+  // Send transaction confirmation email - FIXED VERSION
   async sendTransactionConfirmation(
     user,
     transaction,
@@ -330,7 +335,20 @@ Reply "UNSUBSCRIBE" to opt out
           selectionColor = "#666";
       }
 
-      const side = transaction.notes.includes("YES") ? "YES" : "NO";
+      // 🔧 FIX: Extract side from transaction notes properly
+      let side = "YES"; // default
+      if (transaction.notes) {
+        // Look for "BUY X YES" or "BUY X NO" pattern in notes
+        const sideMatch = transaction.notes.match(/BUY\s+[\d.]+\s+(YES|NO)/i);
+        if (sideMatch) {
+          side = sideMatch[1].toUpperCase();
+        } else if (transaction.notes.includes("NO")) {
+          side = "NO";
+        } else if (transaction.notes.includes("YES")) {
+          side = "YES";
+        }
+      }
+
       const maxPayout = transaction.amount * 100; // Each share pays 100 points
       const potentialProfit = maxPayout + transaction.pointsChange; // pointsChange is negative for purchases
 
@@ -371,6 +389,7 @@ Reply "UNSUBSCRIBE" to opt out
               <li>Use distinctive words from market titles</li>
               <li>Be as specific as possible to avoid confusion</li>
               <li>Check market lists in your email updates</li>
+              <li>You can now trade up to 10,000 points per transaction!</li>
             </ul>
           </div>
         </div>
@@ -393,6 +412,7 @@ Trading Tips for Multiple Markets:
 - Use distinctive words from market titles
 - Be as specific as possible to avoid confusion
 - Check market lists in your email updates
+- You can now trade up to 10,000 points per transaction!
       `,
       };
 

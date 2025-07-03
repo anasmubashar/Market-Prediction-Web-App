@@ -289,13 +289,16 @@ class ImapService {
           }
         }
 
-        if (amount >= 1 && amount <= 1000) {
+        // 🔧 FIX: Increase the limit from 1000 to 10000 to allow larger trades
+        if (amount >= 1 && amount <= 10000) {
           commands.push({
             action: "BUY",
             amount,
             marketHint,
             side,
           });
+        } else {
+          console.log(`📧 Amount ${amount} is outside allowed range (1-10000)`);
         }
       }
     }
@@ -436,6 +439,7 @@ class ImapService {
         command.amount
       );
 
+      // 🔧 FIX: Include the side information in transaction notes
       const transaction = new Transaction({
         user: user._id,
         market: market._id,
@@ -445,7 +449,9 @@ class ImapService {
         pointsChange: -result.cost,
         source: "email",
         emailMessageId: messageId,
-        notes: `${marketSelectionMethod}: ${marketSelectionDetails}`,
+        notes: `BUY ${result.shares} ${
+          command.side || "YES"
+        } shares - ${marketSelectionMethod}: ${marketSelectionDetails}`,
       });
 
       await transaction.save();
@@ -608,6 +614,7 @@ Your trade was still executed successfully! Check your confirmation email for de
               <li><strong>BUY 50</strong> - Buy shares with 50 points (defaults to YES)</li>
               <li><strong>BUY 50 YES</strong> - Buy YES shares with 50 points</li>
               <li><strong>BUY 50 NO</strong> - Buy NO shares with 50 points</li>
+              <li><strong>BUY 2000 YES</strong> - Buy YES shares with 2000 points (up to 10,000 allowed)</li>
               ${marketExamples}
             </ul>
           </div>
@@ -634,7 +641,7 @@ Your trade was still executed successfully! Check your confirmation email for de
               <li>You can only <strong>BUY</strong> shares (no selling)</li>
               <li>Choose YES or NO when you buy</li>
               <li>Shares pay out 100 points each if you're right</li>
-              <li>Use numbers between 1 and 1000 points</li>
+              <li>Use numbers between 1 and 10,000 points</li>
               <li>Include market keywords for specific markets</li>
             </ul>
           </div>
@@ -658,6 +665,7 @@ Correct Format Examples:
 - BUY 50 (Buy shares with 50 points, defaults to YES)
 - BUY 50 YES (Buy YES shares with 50 points)
 - BUY 50 NO (Buy NO shares with 50 points)
+- BUY 2000 YES (Buy YES shares with 2000 points, up to 10,000 allowed)
 ${activeMarkets
   .map((m) => `- BUY 50 ${m.title.split(" ")[0]} YES (Trade in "${m.title}")`)
   .join("\n")}
@@ -677,7 +685,7 @@ Fixed-Odds Market Rules:
 - You can only BUY shares (no selling)
 - Choose YES or NO when you buy
 - Shares pay out 100 points each if you're right
-- Use numbers between 1 and 1000 points
+- Use numbers between 1 and 10,000 points
 - Include market keywords for specific markets
 
 Your current balance: ${user.points} points
@@ -717,6 +725,7 @@ Try again! Just reply with "BUY 50 YES" or include market keywords.
               <li>Check your point balance before buying</li>
               <li>Check your share holdings before selling</li>
               <li>Include market keywords for specific markets</li>
+              <li>Amount limit is now 10,000 points per trade</li>
             </ul>
           </div>
           <p>Your current balance: <strong>${user.points} points</strong></p>
@@ -726,9 +735,10 @@ Try again! Just reply with "BUY 50 YES" or include market keywords.
 Trade Error: ${errorMessage}
 
 Tips:
-- Use format: BUY [amount] or SELL [shares]
+- Use format: BUY [amount]
 - Check your balance: ${user.points} points
 - Include market keywords for specific markets
+- Amount limit is now 10,000 points per trade
       `,
       };
 
