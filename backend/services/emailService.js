@@ -164,7 +164,6 @@ class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  // Generate market email content with ASCII charts
   async generateMarketEmailContent(markets) {
     const subject = `Prediction Markets Update - ${markets.length} Active Markets`;
     const attachments = [];
@@ -172,6 +171,9 @@ class EmailService {
     // Generate charts for each market
     const marketListHtml = await Promise.all(
       markets.map(async (market) => {
+        const latestVolume =
+          market.volumeHistory?.[market.volumeHistory.length - 1];
+        const yesPercentage = latestVolume ? latestVolume.yesPercentage : null;
         const chartBuffer = await ChartService.generateProbabilityChartBuffer(
           market,
           market._id.toString()
@@ -190,9 +192,14 @@ class EmailService {
 <h3 style="margin: 0 0 8px 0; color: #1f2937;">${market.title}</h3>
 
 <div style="display: flex; align-items: center; width: 100%;">
-  
+  <div style="min-width: 120px; margin-right: 16px;">
+            <span style="font-size: 40px; font-weight: 500; color: green;">
+              ${yesPercentage}%
+            </span>
+  </div>
   
   <div style="text-align: right; color: #6b7280; font-size: 14px; margin-left: auto;">
+
     <div>Volume: ${market.totalVolume}</div>
     <div>YES Price: ${(market.fixedYesPrice * 100).toFixed(
       1
